@@ -1,0 +1,67 @@
+frontend/node_modules/
+frontend/dist/
+backend/.venv/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/tests/__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+
+# Python virtual environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node dependencies and frontend/build artifacts
+node_modules/
+dist/
+build/
+.vite/
+
+# Local databases and generated patient-level validation artifacts
+*.db
+*.sqlite
+*.sqlite3
+outputs/
+mysql_data/
+
+# Database backups, dumps, and exports (keep schema/migration SQL trackable)
+database/*backup*
+database/*dump*
+database/*export*
+*.sql.bak
+*.sql.gz
+
+# Logs and temporary files
+*.log
+logs/
+log/
+tmp/
+temp/
+tmp_p3b/
+tmp_read_doc.py
+*.tmp
+*.swp
+
+# Private keys, certificates, and local credentials
+*.pem
+*.key
+*.p12
+*.pfx
+.secrets/
+secrets/
+.credentials/
+credentials/
+
+# IDE and OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
