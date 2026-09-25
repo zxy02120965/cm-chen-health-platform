@@ -1,0 +1,61 @@
+{
+  "baseline_name": "ZXY_WEEK1_V4_FREEZE",
+  "master_rule_version": "V4.2.5",
+  "nutrition_rule_version": "V4.2.4",
+  "exercise_pulmonary_rule_version": "V4.2.1",
+  "ui_contract_version": "V1.2",
+  "engineering_test_contract_version": "V1.0",
+  "ingredient_master_version": "V1.2",
+  "food_component_execution_version": "V1.2",
+  "assets": [
+    {
+      "relative_path": "rules/01_ZXY_MASTER_AGENT_KNOWLEDGE_BASE_FINAL_V4_2_5.md",
+      "role": "CLINICAL_MASTER",
+      "version": "V4.2.5",
+      "sha256": "548a279a19d5239b7e87564b0003e52e97f6275c873bff01ebb54b6843f9e460",
+      "active": true
+    },
+    {
+      "relative_path": "rules/02_ZXY_NUTRITION_COMPONENT_LIBRARY_FINAL_V4_2_4.md",
+      "role": "NUTRITION_GENERATION_RULES",
+      "version": "V4.2.4",
+      "sha256": "f77f8a742a364f1367b3418f3cafe8ffdd589433b1dfe4c2807a968b3102badc",
+      "active": true
+    },
+    {
+      "relative_path": "rules/03_ZXY_EXERCISE_PULMONARY_REHAB_LIBRARY_FINAL_V4_2_1.md",
+      "role": "EXERCISE_PULMONARY_RULES",
+      "version": "V4.2.1",
+      "sha256": "f552fe6a6ebb3ef83d09b8e8d6574469b94de16244374e067cfa2a119dfe43bf",
+      "active": true
+    },
+    {
+      "relative_path": "contracts/ZXY_第一周方案统一输出与医生端展示规范_V1.2.md",
+      "role": "UI_OUTPUT_CONTRACT",
+      "version": "V1.2",
+      "sha256": "0adddf996028258712b6f5d6ab53bbab812d414252f418f9720010c05cdf9964",
+      "active": true
+    },
+    {
+      "relative_path": "contracts/ZXY_回归测试与后端验收规范_V1.0.md",
+      "role": "ENGINEERING_TEST_CONTRACT",
+      "version": "V1.0",
+      "sha256": "ae9a9958f937254f5ea6fd55bf18745031d2e39f5d7ab5b344b1ed0ee6830b22",
+      "active": true
+    },
+    {
+      "relative_path": "data/ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.2.xlsx",
+      "role": "MDT_INGREDIENT_MASTER",
+      "version": "V1.2",
+      "sha256": "50aca8714a6d55179c60da32070f4be7a5010efc0712e13d2cf010905193818f",
+      "active": true
+    },
+    {
+      "relative_path": "data/ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.2.xlsx",
+      "role": "MDT_STANDARD_COMPONENT_EXECUTION",
+      "version": "V1.2",
+      "sha256": "6b5fd88e7b586939cd89aabb4e0366089001f111f02f8f0f7e7acc1d8ec6e198",
+      "active": true
+    }
+  ]
+}
