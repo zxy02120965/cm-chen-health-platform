@@ -1,0 +1,5 @@
+# Keep frozen V4 contract assets byte-stable so manifest SHA-256 values remain
+# reproducible across Windows checkouts with core.autocrlf enabled.
+/backend/knowledge/zxy_week1/rules/*.md -text
+/backend/knowledge/zxy_week1/contracts/*.md -text
+/backend/knowledge/zxy_week1/data/*.xlsx binary

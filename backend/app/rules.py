@@ -5,6 +5,7 @@ from typing import Any
 from .missing_data_policy import structured_missing_context
 from .plan_contract import PLAN_CONTENT_CONTRACT_VERSION
 from .v2_engine import build_v2_plan, calculate_phenotype, parse_q56, normalize_selection
+from .v4_contract import derive_v4_phenotype
 
 
 def _filled(value: Any) -> bool:
@@ -143,6 +144,7 @@ def assess_payload(payload: dict[str, Any]) -> dict[str, Any]:
     # All callers (persistence, API and plan generation) use this one
     # calculation entry point; no endpoint computes A-F independently.
     phenotype_code, phenotype_modifiers = calculate_phenotype(payload)
+    v4_phenotype_contract = derive_v4_phenotype(payload)
     return {
         "tier": tier,
         "tier_label": tier_label,
@@ -153,6 +155,10 @@ def assess_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "phenotype": {"A": "A｜超重/高体脂型", "B": "B｜肥胖/代谢风险型", "C": "C｜高体脂伴肌少风险型", "D": "D｜消瘦/营养风险型", "E": "E｜非意愿下降/摄入不足型", "F": "F｜复杂共病/执行障碍型"}.get(phenotype_code, phenotype),
         "phenotype_code": phenotype_code,
         "phenotype_modifiers": phenotype_modifiers,
+        "v4_phenotype_contract": v4_phenotype_contract,
+        "primary_nutrition_phenotype": v4_phenotype_contract["primary_nutrition_phenotype"],
+        "complexity_overlay": v4_phenotype_contract["complexity_overlay"],
+        "display_phenotype": v4_phenotype_contract["display_phenotype"],
         "liver": liver,
         "q56_goal": q56,
         "q56_optional_not_set": not q56.get("has_clinician_goal", False),

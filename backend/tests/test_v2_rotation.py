@@ -295,12 +295,16 @@ def test_p25_warn_days_require_nutrition_review_and_weekly_summary():
     recovery_payload["q28_weightChange"] = "不明原因下降"
     recovery_payload["q30_intake"] = "减少50%"
     recovery = build_v2_plan(recovery_payload, assess_payload(recovery_payload), active_configs=candidate_test_profile())
-    # The previous implementation treated a valid protein_delta_pct == 0.0
-    # as missing and produced a false WARN.  E's current seven-day fixture is
-    # within the engineering tolerance after the explicit None check.
-    assert recovery["nutrition_review_required"] is False
-    assert recovery["weekly_nutrition_summary"]["days_warn"] == 0
-    assert recovery["nutrition_review"]["warn_days"] == []
+    # V4 E01 is intentionally structure-only: severe decline does not receive
+    # an automatically prescribed single-point energy/protein target.  The
+    # former assertion treated this fixture as a numerically closed plan and
+    # is therefore superseded by the energy-state contract.
+    assert recovery["energy_state"]["energy_target"]["status"] == "UNAVAILABLE"
+    assert recovery["energy_state"]["diet_generation_mode"] == "STRUCTURE_ONLY"
+    assert recovery["energy_calculation"]["daily_energy_target_kcal"] is None
+    assert recovery["nutrition_review_required"] is True
+    assert recovery["weekly_nutrition_summary"]["days_incomplete"] == 7
+    assert recovery["nutrition_review"]["incomplete_days"] == list(range(1, 8))
 
 
 def test_d1_replacement_is_bounded_and_traceable():

@@ -1594,12 +1594,45 @@ def build_v2_plan(
     active_configs: dict[str, Any] | None = None,
     pulmonary_clinician_inputs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    phenotype = str(evaluation.get("phenotype_code") or evaluation.get("phenotype") or "A").split("｜", 1)[0].strip()
+    # V4 keeps the legacy display phenotype for compatibility, while all
+    # nutrition/energy decisions use the underlying A-E phenotype.  The
+    # imports remain local so the legacy rules module can continue importing
+    # this engine without a module cycle.
+    from .v4_contract import derive_v4_phenotype
+    from .v4_energy_state import derive_energy_state
+
+    legacy_phenotype = str(evaluation.get("phenotype_code") or evaluation.get("phenotype") or "A").split("｜", 1)[0].strip()
+    v4_phenotype_contract = evaluation.get("v4_phenotype_contract") or derive_v4_phenotype(payload)
+    nutrition_phenotype = v4_phenotype_contract.get("primary_nutrition_phenotype") or legacy_phenotype
+    display_phenotype = v4_phenotype_contract.get("display_phenotype") or legacy_phenotype
+    # ``phenotype`` remains the display/legacy field.  New machine consumers
+    # must use ``primary_nutrition_phenotype`` and ``complexity_overlay``.
+    phenotype = display_phenotype
     q56 = parse_q56(payload.get("q56_goal", payload.get("Q56")))
     liver = evaluation.get("liver", {})
     safety_level = evaluation.get("safety", "green")
-    trace = energy_trace(payload, phenotype, q56, safety_level, active_configs=active_configs)
-    enhanced_ok, enhanced_reasons = enhanced_eligibility(payload, phenotype, safety_level, q56, liver)
+    trace = energy_trace(payload, nutrition_phenotype, q56, safety_level, active_configs=active_configs)
+    v4_energy_state = derive_energy_state(
+        phenotype_contract=v4_phenotype_contract,
+        energy_trace=trace,
+        payload=payload,
+        active_configs=active_configs,
+        safety_level=safety_level,
+    )
+    # A structure-only state must not expose a fabricated exact target to the
+    # nutrition closure.  The legacy trace remains available for diagnostics,
+    # but generation receives null targets in this mode.
+    generation_energy_target = (
+        v4_energy_state["energy_target"].get("prescribed_energy_target_kcal")
+        or v4_energy_state["energy_target"].get("provisional_energy_target_kcal")
+    )
+    if v4_energy_state["diet_generation_mode"] == "STRUCTURE_ONLY":
+        generation_energy_target = None
+    trace["legacy_candidate_energy_target_kcal"] = trace.get("daily_energy_target_kcal")
+    trace["daily_energy_target_kcal"] = generation_energy_target
+    trace["energy_target_status"] = v4_energy_state["energy_target"]["status"]
+    trace["diet_generation_mode"] = v4_energy_state["diet_generation_mode"]
+    enhanced_ok, enhanced_reasons = enhanced_eligibility(payload, nutrition_phenotype, safety_level, q56, liver)
     goal_conflict = q56.get("primary_goal") == "ENHANCED_FAT_LOSS" and not enhanced_ok
     candidate_mode = bool(isinstance(active_configs, dict) and (active_configs.get("environment") == "TEST_ONLY" or any(isinstance(v, dict) and (v.get("environment") == "TEST_ONLY" or v.get("status") == "CANDIDATE") for v in active_configs.values())))
     # Candidate/MDT governance is metadata for review, not a patient-level
@@ -1649,7 +1682,7 @@ def build_v2_plan(
     if safety_level == "red":
         goal_text = "当前存在红色安全信号，暂停自动进阶并转医护处理。"
     else:
-        goal_text = Q56_PRIMARY.get(q56.get("primary_goal"), AF_DEFAULTS.get(phenotype, AF_DEFAULTS["F"])["mode"])
+        goal_text = Q56_PRIMARY.get(q56.get("primary_goal"), AF_DEFAULTS.get(nutrition_phenotype, AF_DEFAULTS["A"])["mode"])
     # Resolve existing nutrition targets before candidate selection so they can
     # participate in ranking (the values themselves still come from the
     # established energy/protein configurations).
@@ -1657,16 +1690,20 @@ def build_v2_plan(
     protein_target = None
     weight_for_protein = _value(payload, "q15_weight", "weight_kg")
     if isinstance(protein_cfg, dict) and protein_cfg.get("status") in {"ACTIVE", "CANDIDATE"} and weight_for_protein is not None:
-        try: protein_target = round(float(weight_for_protein) * AF_DEFAULTS.get(phenotype, AF_DEFAULTS["F"])["protein_g_per_kg"], 1)
+        try: protein_target = round(float(weight_for_protein) * AF_DEFAULTS.get(nutrition_phenotype, AF_DEFAULTS["A"])["protein_g_per_kg"], 1)
         except (TypeError, ValueError): protein_target = None
+    if v4_energy_state["diet_generation_mode"] == "STRUCTURE_ONLY":
+        protein_target = None
     macro_cfg = (active_configs or {}).get("V2-MACRO-CANDIDATES") or {}
     meal_cfg = (active_configs or {}).get("V2-MEAL-DISTRIBUTION") or {}
     carb_range = macro_cfg.get("carbohydrate_pct_range") if isinstance(macro_cfg, dict) else None
     fat_range = macro_cfg.get("fat_pct_range") if isinstance(macro_cfg, dict) else None
     meal_distribution = meal_cfg.get("distribution_pct_range") if isinstance(meal_cfg, dict) else None
     nutrition_trace = {
-        "phenotype": phenotype,
-        "energy_target": trace.get("daily_energy_target_kcal"),
+        "phenotype": nutrition_phenotype,
+        "energy_target": generation_energy_target,
+        "energy_target_status": v4_energy_state["energy_target"]["status"],
+        "diet_generation_mode": v4_energy_state["diet_generation_mode"],
         "protein_target": protein_target,
         "carbohydrate_target": carb_range,
         "fat_target": fat_range,
@@ -1694,8 +1731,8 @@ def build_v2_plan(
         # history for every food category.
         if nutrition_generation_status == "complete":
             rotating_meals, rotation_limited = _build_rotating_weekly_meals(
-                catalog_foods, payload, phenotype=phenotype, goal=q56,
-                energy_target=trace.get("daily_energy_target_kcal"),
+                catalog_foods, payload, phenotype=nutrition_phenotype, goal=q56,
+                energy_target=generation_energy_target,
                 protein_target=protein_target, carb_range=carb_range,
                 fat_range=fat_range, meal_distribution=meal_distribution,
                 nutrition_trace=nutrition_trace,
@@ -1736,7 +1773,7 @@ def build_v2_plan(
             closure, details = _close_day_meals(
                 day_number,
                 day_meals,
-                daily_energy=trace.get("daily_energy_target_kcal"),
+                daily_energy=generation_energy_target,
                 protein_target=protein_target,
                 carb_range=carb_range,
                 fat_range=fat_range,
@@ -1763,9 +1800,9 @@ def build_v2_plan(
                 rotating_meals,
                 catalog_foods,
                 payload,
-                phenotype=phenotype,
+                phenotype=nutrition_phenotype,
                 goal=q56,
-                energy_target=trace.get("daily_energy_target_kcal"),
+                energy_target=generation_energy_target,
                 protein_target=protein_target,
                 carb_range=carb_range,
                 fat_range=fat_range,
@@ -1785,7 +1822,7 @@ def build_v2_plan(
                 nutrition_trace["portion_adjustments"].extend(optimized_details.get("portion_adjustments") or [])
                 nutrition_trace["meal_energy_actual"][day_number - 1] = optimized_details.get("meal_energy_actual", {})
     else:
-        daily_closures = [{"day": day, "energy_target": trace.get("daily_energy_target_kcal"), "energy_actual": None, "energy_delta_pct": None, "protein_target": protein_target, "protein_actual": None, "protein_delta_pct": None, "carbohydrate_target": None, "carbohydrate_actual": None, "fat_target": None, "fat_actual": None, "closure_status": "INCOMPLETE", "reasons": nutrition_generation_missing_reasons or ["未生成饮食组件"], "portion_adjustment_limited": True} for day in range(1, 8)]
+        daily_closures = [{"day": day, "energy_target": generation_energy_target, "energy_actual": None, "energy_delta_pct": None, "protein_target": protein_target, "protein_actual": None, "protein_delta_pct": None, "carbohydrate_target": None, "carbohydrate_actual": None, "fat_target": None, "fat_actual": None, "closure_status": "INCOMPLETE", "reasons": nutrition_generation_missing_reasons or ["未生成饮食组件"], "portion_adjustment_limited": True} for day in range(1, 8)]
         nutrition_trace.setdefault("meal_energy_target", [])
         nutrition_trace.setdefault("meal_energy_actual", [])
         nutrition_trace.setdefault("protein_distribution", [])
@@ -1847,7 +1884,7 @@ def build_v2_plan(
     nutrition_trace["nutrition_review_required"] = nutrition_review_required
     nutrition_trace["weekly_nutrition_summary"] = weekly_nutrition_summary
     nutrition_complete = nutrition_generation_status == "complete" and all(all(meal.get(key) not in (None, "") for key in ("ingredient_name", "ingredient_amount", "unit", "raw_or_cooked_basis", "cooking_method")) for meal in meals.values()) and all(v is not None for m in meals.values() for v in (m.get("estimated_energy"), m.get("estimated_protein"), m.get("estimated_carbohydrate"), m.get("estimated_fat")))
-    target_energy = trace.get("daily_energy_target_kcal")
+    target_energy = generation_energy_target
     closure_ok = nutrition_generation_status == "complete" and bool(daily_closures) and all(item.get("closure_status") == "PASS" for item in daily_closures) if target_energy is not None else nutrition_generation_status == "complete"
     # Separate content integrity from governance/publish eligibility. Candidate
     # values can produce a complete clinician draft while remaining blocked
@@ -1887,6 +1924,11 @@ def build_v2_plan(
         "publish_eligible": bool(review_eligible and not publication_blocked),
         "clinician_goal_q56": q56,
         "phenotype": phenotype,
+        "primary_nutrition_phenotype": nutrition_phenotype,
+        "complexity_overlay": v4_phenotype_contract["complexity_overlay"],
+        "display_phenotype": display_phenotype,
+        "v4_phenotype_contract": v4_phenotype_contract,
+        "energy_state": v4_energy_state,
         "surgery_window": _value(payload, "q6_surgeryWindow"),
         "safety_level": safety_level,
         "pulmonary_rule_version": "V1.0",
