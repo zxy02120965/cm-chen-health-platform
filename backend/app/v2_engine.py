@@ -104,7 +104,15 @@ PULMONARY = {
 V2_CANDIDATE_TEST_PROFILE = {
     "environment": "TEST_ONLY",
     "V2-REE-FORMULA": {"status": "ACTIVE", "ree_formula_id": "MSJ", "ree_formula_version": "V2-CANDIDATE", "cross_check_threshold": 0.20},
-    "V2-PAL-RULE": {"status": "ACTIVE", "default": 1.40, "sedentary": 1.20, "light": 1.375, "moderate": 1.55},
+    "V2-PAL-RULE": {
+        "status": "ACTIVE", "default": 1.40, "sedentary": 1.20, "light": 1.375, "moderate": 1.55,
+        # Candidate mapping from the frozen V4 rule table.  It is deliberately
+        # TEST_ONLY metadata until the hospital promotes PAL parameters.
+        "candidate_by_functional_profile": {
+            "high_borg_complexity": 1.30,
+            "standard_functional": 1.35,
+        },
+    },
     "V2-AF-ENERGY-MODES": {"status": "ACTIVE", "environment": "TEST_ONLY", "modes": deepcopy(AF_DEFAULTS)},
     "V2-PROTEIN-MACROS": {"status": "ACTIVE", "environment": "TEST_ONLY", "protein_source": "AF_DEFAULT_CANDIDATE"},
     # These ranges are copied from the reviewed V2 documents.  They are
@@ -447,19 +455,56 @@ def energy_trace(payload: dict[str, Any], phenotype: str, goal: dict[str, Any], 
         # Formula is deliberately invoked only when selected by ACTIVE config.
         predicted = 10 * weight + (6.25 * float(_value(payload, "q14_height", "height_cm") or 0)) - 5 * age + (5 if sex in {"男", "M", "male"} else -161)
     pal = None
+    pal_source = None
+    pal_status = "UNAVAILABLE"
     activity = str(_value(payload, "activity_level", "q35_exerciseFrequency") or "default")
-    if pal_map and pal_map.get(activity) is not None:
+    explicit_candidate_pal = _value(payload, "pal_candidate", "candidate_pal", "provisional_pal")
+    if explicit_candidate_pal is not None:
+        try:
+            pal = float(explicit_candidate_pal)
+            pal_source = "PAYLOAD_CANDIDATE_PAL"
+            pal_status = "CANDIDATE"
+        except (TypeError, ValueError):
+            pal = None
+    candidate_functional_map = pal_map.get("candidate_by_functional_profile") if isinstance(pal_map, dict) else None
+    if pal is None and isinstance(candidate_functional_map, dict):
+        walk_text = str(_value(payload, "q27_walkTest", "six_minute_walk_m") or "")
+        borg_match = re.search(r"BORG\s*[=:：]\s*(\d+(?:\.\d+)?)", walk_text, flags=re.IGNORECASE)
+        borg = float(borg_match.group(1)) if borg_match else None
+        profile_key = (
+            "high_borg_complexity"
+            if borg is not None and borg >= 5 and phenotype in {"B", "F"}
+            else "standard_functional"
+            if borg is not None
+            else None
+        )
+        if profile_key and candidate_functional_map.get(profile_key) is not None:
+            pal = float(candidate_functional_map[profile_key])
+            pal_source = "Q27_FUNCTIONAL_CAPACITY_CANDIDATE_MAPPING"
+            pal_status = "CANDIDATE"
+    if pal is None and pal_map and pal_map.get(activity) is not None:
         pal = float(pal_map[activity])
-    elif pal_map.get("default") is not None:
+        pal_source = "CONFIG_ACTIVITY_LEVEL"
+        pal_status = "ACTIVE" if formula_status == "ACTIVE" and pal_map.get("status") == "ACTIVE" else "CANDIDATE"
+    if pal is None and pal_map.get("default") is not None:
         pal = float(pal_map["default"])
+        pal_source = "CONFIG_DEFAULT_CANDIDATE" if pal_status != "ACTIVE" else "CONFIG_DEFAULT"
+        pal_status = "ACTIVE" if formula_status == "ACTIVE" and pal_map.get("status") == "ACTIVE" else "CANDIDATE"
     tee = None
     source = "P4_KCAL_PER_KG_RANGE"
     ree_value = None
+    test_only_profile = active_configs.get("environment") == "TEST_ONLY"
+    # In TEST_ONLY profiles a valid P3 BIA/BMR takes precedence over the
+    # candidate formula.  If no P3 measurement exists, retain the historical
+    # formula path so sparse legacy fixtures still exercise their P2 contract.
+    formula_primary_allowed = formula_status == "ACTIVE" and (not test_only_profile or bia is None)
     if measured is not None:
         source, ree_value = "P1_MEASURED_REE", measured
         tee = round(measured * pal, 1) if pal is not None else None
-    elif predicted is not None and pal is not None:
+    elif predicted is not None and pal is not None and formula_primary_allowed:
         source, ree_value, tee = "P2_APPROVED_FORMULA", predicted, round(predicted * pal, 1)
+    elif bia is not None and pal is not None:
+        source, ree_value, tee = "P3_BIA_BMR_TEMP", bia, round(bia * pal, 1)
     ref_min, ref_max = ((25 * weight, 30 * weight) if weight is not None else (None, None))
     consistency = "INSUFFICIENT_DATA"
     conflict = False
@@ -476,8 +521,13 @@ def energy_trace(payload: dict[str, Any], phenotype: str, goal: dict[str, Any], 
             "kcal_per_kg_reference_max": ref_max, "kcal_per_kg_reference_range": [ref_min, ref_max] if ref_min is not None else None,
             "consistency_check": consistency, "consistency_status": consistency, "energy_estimation_conflict": conflict,
             "prescription_mode": mode, "prescription_ratio": ratio, "daily_energy_target_kcal": round(tee * ratio, 1) if tee is not None else None,
-            "mdt_confirmed": bool(formula_id and formula_status == "ACTIVE" and pal is not None),
-            "candidate_parameter": bool(formula_id and formula_status == "CANDIDATE")}
+            "primary_energy_source": source,
+            "p2_formula_status": "CANDIDATE" if test_only_profile else formula_status,
+            "p2_primary_eligible": formula_primary_allowed,
+            "pal_source": pal_source,
+            "pal_status": pal_status,
+            "mdt_confirmed": bool(formula_id and formula_status == "ACTIVE" and pal is not None and not test_only_profile),
+            "candidate_parameter": bool(formula_id and (formula_status == "CANDIDATE" or test_only_profile))}
 
 
 def enhanced_eligibility(payload: dict[str, Any], phenotype: str, safety_level: str, goal: dict[str, Any], liver: dict[str, Any]) -> tuple[bool, list[str]]:
@@ -1751,10 +1801,20 @@ def build_v2_plan(
     enhanced_ok, enhanced_reasons = enhanced_eligibility(payload, nutrition_phenotype, safety_level, q56, liver)
     goal_conflict = q56.get("primary_goal") == "ENHANCED_FAT_LOSS" and not enhanced_ok
     candidate_mode = bool(isinstance(active_configs, dict) and (active_configs.get("environment") == "TEST_ONLY" or any(isinstance(v, dict) and (v.get("environment") == "TEST_ONLY" or v.get("status") == "CANDIDATE") for v in active_configs.values())))
-    # Candidate/MDT governance is metadata for review, not a patient-level
-    # publication blocker.  Only safety, an explicit goal conflict, or an
-    # energy-estimation conflict blocks this baseline rule plan.
-    publication_blocked = safety_level == "red" or goal_conflict or trace.get("energy_estimation_conflict", False)
+    # Provisional and structure-only energy chains are reviewable drafts, but
+    # cannot be published as if their energy source were ACTIVE.  This is a
+    # candidate-content governance flag only; the publication workflow remains
+    # unchanged and still owns the final gate.
+    energy_requires_review = (
+        v4_energy_state["energy_target"]["status"] != "ACTIVE"
+        or v4_energy_state["diet_generation_mode"] != "EXACT_ACTIVE"
+    )
+    publication_blocked = (
+        safety_level == "red"
+        or goal_conflict
+        or trace.get("energy_estimation_conflict", False)
+        or energy_requires_review
+    )
     draft_source = "ACTIVE_MDT" if not candidate_mode and active_configs and all(not isinstance(v, dict) or v.get("status", "ACTIVE") == "ACTIVE" for v in active_configs.values()) else "CANDIDATE_MDT" if candidate_mode else "RULE_BASED_PENDING"
     goal_source = "Q56_CLINICIAN" if q56.get("has_clinician_goal") else "SYSTEM_DEFAULT_AF"
     exercise_cfg = (active_configs or {}).get("V2-EXERCISE-ACTIONS") or (active_configs or {}).get("EXERCISE_IDS") or {}
@@ -1787,13 +1847,28 @@ def build_v2_plan(
         exercise_catalog, phenotype, restrictions=restrictions, safety_level=safety_level,
         pulmonary=selected_pulmonary,
     )
+    # Phase 3B-1: adapt the final legacy V3 candidate into one canonical,
+    # auditable exercise week.  Selection, dose intent and clinical rules
+    # remain owned by build_v3_weekly_exercise; this adapter only normalizes
+    # identity/roles and derives counts after the candidate is complete.
+    from .v4_exercise_trace import build_canonical_exercise_week
+    canonical_exercise_week, v4_weekly_schedule, v4_flat_exercise = build_canonical_exercise_week(
+        v3_weekly_schedule,
+        combo=v3_combo,
+        v4_phenotype_contract=v4_phenotype_contract,
+        q56_goal=q56,
+        surgery_window=_value(payload, "q6_surgeryWindow"),
+        safety_level=safety_level,
+        allowed_action_ids=set(v3_combo.get("allowed_action_ids") or []),
+    )
+    v3_weekly_schedule = v4_weekly_schedule
+    v3_flat_exercise = v4_flat_exercise
     if safety_level == "red":
         selected_exercise = []
-    elif not catalog_items_supplied and exercise_ids:
-        # Preserve the explicit-ID compatibility path used by older callers;
-        # the richer Day1-Day7 schedule is still emitted alongside it.
-        selected_exercise = [deepcopy(EXERCISES[eid]) for eid in exercise_ids if eid in EXERCISES]
     else:
+        # The canonical adapter is now the source for the patient-facing flat
+        # list as well as the seven-day schedule.  Action IDs remain stable,
+        # so older consumers retain their existing lookup behaviour.
         selected_exercise = v3_flat_exercise
     if safety_level == "red":
         goal_text = "当前存在红色安全信号，暂停自动进阶并转医护处理。"
@@ -2048,12 +2123,17 @@ def build_v2_plan(
     publish_validation = "BLOCKED" if publication_blocked else "PASS"
     content_errors = [] if content_validation == "PASS" else ["营养餐次字段或营养闭合未通过"]
     review_validation = "PASS" if content_validation == "PASS" else "BLOCKED"
+    publish_block_reasons = (["安全状态/目标冲突"] if safety_level == "red" or goal_conflict else [])
+    if trace.get("energy_estimation_conflict", False):
+        publish_block_reasons.append("能量估算冲突需复核")
+    if energy_requires_review:
+        publish_block_reasons.append("能量状态为PROVISIONAL/UNAVAILABLE，需医护审核")
     validation = {"nutrition_plan_validation": content_validation, "content_validation": content_validation,
                   "exercise_validation": "PASS" if selected_exercise or safety_level == "red" else "BLOCKED",
                   "pulmonary_validation": "PASS" if selected_pulmonary or safety_level == "red" else "BLOCKED",
                   "safety_validation": "BLOCKED" if safety_level == "red" or goal_conflict else "PASS",
                   "review_validation": review_validation, "publish_validation": publish_validation,
-                  "publish_block_reasons": (["安全状态/目标冲突"] if safety_level == "red" or goal_conflict else []) + (["能量估算冲突需复核"] if trace.get("energy_estimation_conflict", False) else []),
+                  "publish_block_reasons": publish_block_reasons,
                   "nutrition_closure": {**meal_totals, "target_energy_kcal": target_energy, "within_20pct": closure_ok, "tolerance": VALIDATION_TOLERANCE, "tolerance_type": "VALIDATION_TOLERANCE", "daily": daily_closures}, "nutrition_review_required": nutrition_review_required, "nutrition_review": nutrition_review, "weekly_nutrition_summary": weekly_nutrition_summary, "errors": content_errors}
     review_eligible = review_validation == "PASS"
     weekly_schedule = []
@@ -2100,6 +2180,8 @@ def build_v2_plan(
         # produced from this same materialized week, never recalculated.
         "canonical_week_diet": canonical_week_diet,
         "diet_plan_trace": canonical_week_diet,
+        "canonical_exercise_week": canonical_exercise_week,
+        "exercise_plan_trace": canonical_exercise_week,
         "replacement_optimization": replacement_optimization,
         "nutrition_generation_status": nutrition_generation_status,
         "nutrition_generation_missing_reasons": nutrition_generation_missing_reasons,

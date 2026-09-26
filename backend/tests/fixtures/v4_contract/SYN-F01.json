@@ -23,5 +23,5 @@
     "legacy_source": "Q1-Q56_合成患者测试数据_A-F分型_18例.xlsx",
     "notes": ["当前运行预期存在 B→C + F 与 GREEN→YELLOW 的已知契约差异；不修改患者事实。"]
   },
-  "known_contract_gap": {"present": true, "fields": ["primary_nutrition_phenotype", "safety_level", "provisional_energy_target_kcal", "publication_blocked"], "reason": "Current production phenotype precedence selects C before B for pain limitation + exercise-education barrier; current Safety gate lacks an explicit trigger for these exact facts; the end-to-end candidate runtime also uses its existing P2/PAL candidate configuration and governance projection.", "resolution_status": "PENDING_RULE_ALIGNMENT"}
+  "known_contract_gap": {"present": true, "fields": ["safety_level"], "reason": "PENDING_MDT_SAFETY_ALIGNMENT: frozen Test Contract expects YELLOW but this round does not change safety thresholds.", "resolution_status": "PENDING_MDT_SAFETY_ALIGNMENT"}
 }

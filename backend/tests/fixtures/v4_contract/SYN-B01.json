@@ -23,5 +23,5 @@
     "legacy_source": "Q1-Q56_合成患者测试数据_A-F分型_18例.xlsx",
     "notes": []
   },
-  "known_contract_gap": {"present": true, "fields": ["provisional_energy_target_kcal", "publication_blocked"], "reason": "Current end-to-end candidate runtime uses its existing P2/PAL candidate configuration and governance projection; it does not yet reproduce the frozen direct BMR/PAL fixture target or publication flag.", "resolution_status": "PENDING_RULE_ALIGNMENT"}
+  "known_contract_gap": {"present": false, "fields": [], "reason": "", "resolution_status": "ALIGNED"}
 }

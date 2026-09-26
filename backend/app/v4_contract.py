@@ -94,9 +94,7 @@ def derive_v4_phenotype(payload: dict[str, Any]) -> dict[str, Any]:
         low_muscle = (smi is not None and smi < 5.7) or (
             body_fat is not None and body_fat >= 35 and skeletal_muscle is not None and skeletal_muscle < 20
         ) or (skeletal_muscle is not None and skeletal_muscle < 18)
-        if low_muscle or "长期节食" in diet or "蛋白质不足" in diet or (
-            "疼痛限制" in barriers and "不知道怎么运动" in barriers
-        ):
+        if low_muscle or "长期节食" in diet or "蛋白质不足" in diet:
             primary = "C"
             reasons = ["高体脂伴肌肉/功能风险"]
         elif metabolic or (bmi is not None and bmi >= 28):

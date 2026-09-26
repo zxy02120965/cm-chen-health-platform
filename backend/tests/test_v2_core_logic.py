@@ -76,8 +76,8 @@ def test_q56_red_conflict_blocks_publication():
     assert plan["manual_review_required"] is True
 
 
-def test_candidate_baseline_is_reviewable_and_publishable_when_safe():
-    """Patient-level MDT governance metadata must not block the baseline flow."""
+def test_candidate_baseline_is_reviewable_but_energy_provisional_blocks_publish():
+    """A provisional candidate remains reviewable but is not publishable."""
     payload = {
         "q14_height": 170,
         "q15_weight": 70,
@@ -96,10 +96,10 @@ def test_candidate_baseline_is_reviewable_and_publishable_when_safe():
     plan = build_v2_plan(payload, evaluation, active_configs=candidate_test_profile())
     assert plan["rule_authority"] == "PROJECT_BASELINE_V2_V3"
     assert plan["candidate_draft"] is True
-    assert plan["publication_blocked"] is False
+    assert plan["publication_blocked"] is True
     assert plan["review_eligible"] is True
-    assert plan["publish_eligible"] is True
-    assert plan["validation_result"]["publish_validation"] == "PASS"
+    assert plan["publish_eligible"] is False
+    assert plan["validation_result"]["publish_validation"] == "BLOCKED"
 
 
 def test_liver_q50_is_modifier_not_fibrosis_diagnosis():

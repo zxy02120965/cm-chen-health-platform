@@ -22,5 +22,5 @@
     "legacy_source": "Q1-Q56_合成患者测试数据_A-F分型_18例.xlsx",
     "notes": []
   },
-  "known_contract_gap": {"present": true, "fields": ["publication_blocked"], "reason": "The current end-to-end candidate runtime keeps publication governance separate and does not expose the frozen fixture's publication_blocked flag directly.", "resolution_status": "PENDING_RULE_ALIGNMENT"}
+  "known_contract_gap": {"present": false, "fields": [], "reason": "", "resolution_status": "ALIGNED"}
 }
