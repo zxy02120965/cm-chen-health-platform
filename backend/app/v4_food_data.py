@@ -177,6 +177,15 @@ class IngredientRecord:
     requires_clinician_review: bool
     # Compatibility alias retained for callers from the Phase 2A first pass.
     active: bool
+    # Authoritative per-unit nutrition values from Ingredient Master.  These
+    # are intentionally optional because pending sources may carry no usable
+    # exact values; callers must check exact_nutrition_eligible first.
+    weight_basis: str | None = None
+    nutrition_basis: str | None = None
+    energy_kcal_per100g: float | None = None
+    protein_g_per100g: float | None = None
+    carbohydrate_g_per100g: float | None = None
+    fat_g_per100g: float | None = None
 
 
 @dataclass(frozen=True)
@@ -279,6 +288,11 @@ def _load_runtime() -> V4FoodRuntime:
         rule = str(_clean(record.get("离散单位/包装规则")) or "")
         knowledge_status = str(_clean(record.get("knowledge_status")) or "")
         final_decision = str(_clean(record.get("MDT_final_decision")) or "")
+        def optional_number(field: str) -> float | None:
+            raw = _clean(record.get(field))
+            if raw is None:
+                return None
+            return _number(raw, field=field, record_id=ingredient_id)
         execution_eligible = bool(
             str(_clean(record.get("execution_unit")) or "")
             and minimum > 0
@@ -307,6 +321,12 @@ def _load_runtime() -> V4FoodRuntime:
             nutrition_source_pending=not exact_nutrition_eligible,
             requires_clinician_review=not exact_nutrition_eligible,
             active=exact_nutrition_eligible,
+            weight_basis=_clean(record.get("weight_basis")),
+            nutrition_basis=_clean(record.get("nutrition_basis")),
+            energy_kcal_per100g=optional_number("energy_kcal_per100g"),
+            protein_g_per100g=optional_number("protein_g_per100g"),
+            carbohydrate_g_per100g=optional_number("carbohydrate_g_per100g"),
+            fat_g_per100g=optional_number("fat_g_per100g"),
         )
     if len(ingredients) != 48:
         raise V4FoodDataError(f"Ingredient Master expected 48 unique rows, got {len(ingredients)}")

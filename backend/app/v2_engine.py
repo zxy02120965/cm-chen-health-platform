@@ -1842,8 +1842,39 @@ def build_v2_plan(
     }
     nutrition_trace["portion_adjustment_limited"] = portion_adjustment_limited
     nutrition_trace["portion_adjustment_reason"] = list(dict.fromkeys(portion_adjustment_reasons))
+    # Phase 2B: materialize only after the final replacement/closure decision.
+    # The returned compatibility meals are projections of the same canonical
+    # object; no later nutrition or portion optimizer runs after this point.
+    legacy_rotating_meals = rotating_meals
+    try:
+        from .v4_diet_materialization import materialize_canonical_week_diet
+        canonical_week_diet, projected_rotating_meals = materialize_canonical_week_diet(
+            legacy_rotating_meals,
+            energy_state=v4_energy_state,
+            context_snapshot={
+                "patient_id": payload.get("patient_id"),
+                "primary_nutrition_phenotype": nutrition_phenotype,
+                "complexity_overlay": v4_phenotype_contract.get("complexity_overlay"),
+                "energy_state": deepcopy(v4_energy_state),
+                "food_source": "ZXY_WEEK1_V4_FREEZE/V1.2",
+            },
+        )
+        rotating_meals = projected_rotating_meals
+    except Exception as exc:  # explicit trace failure; never hide legacy state
+        canonical_week_diet = {
+            "trace_schema_version": "FOOD_TRACE_V4_2",
+            "trace_materialization_status": "MISSING",
+            "generation_context": {"error": str(exc)},
+            "days": [],
+            "trace_validation": {"status": "FAIL", "error": str(exc)},
+        }
+        # Do not expose legacy base×scale amounts when the V4 materializer
+        # itself is unavailable.  The explicit MISSING trace is the only
+        # result; callers must route it to review rather than use stale grams.
+        rotating_meals = [{} for _ in range(7)]
     meals = rotating_meals[0] if rotating_meals else {}
-    meal_totals = {"energy_kcal": sum((m.get("estimated_energy") or 0) for m in meals.values()), "protein_g": sum((m.get("estimated_protein") or 0) for m in meals.values()), "carbohydrate_g": sum((m.get("estimated_carbohydrate") or 0) for m in meals.values()), "fat_g": sum((m.get("estimated_fat") or 0) for m in meals.values())}
+    legacy_meals_for_totals = legacy_rotating_meals[0] if legacy_rotating_meals else {}
+    meal_totals = {"energy_kcal": sum((m.get("estimated_energy") or 0) for m in legacy_meals_for_totals.values()), "protein_g": sum((m.get("estimated_protein") or 0) for m in legacy_meals_for_totals.values()), "carbohydrate_g": sum((m.get("estimated_carbohydrate") or 0) for m in legacy_meals_for_totals.values()), "fat_g": sum((m.get("estimated_fat") or 0) for m in legacy_meals_for_totals.values())}
     warn_days = [item["day"] for item in daily_closures if item.get("closure_status") == "WARN"]
     incomplete_days = [item["day"] for item in daily_closures if item.get("closure_status") == "INCOMPLETE"]
     nutrition_review_required = bool(warn_days or incomplete_days)
@@ -1942,6 +1973,10 @@ def build_v2_plan(
         "stage_goals": {"overall_goal": goal_text, "weight_goal": q56.get("target_weight_kg"), "body_fat_goal": None, "waist_goal": None, "muscle_goal": "优先保护肌肉，具体目标待医护确认", "functional_goal": None, "metabolic_goals": None, "surgery_preparation_goal": "完成术前安全准备和预康复技能练习"},
         "energy_calculation": trace,
         "nutrition_trace": nutrition_trace,
+        # Phase 2B canonical root. Compatibility projections below are
+        # produced from this same materialized week, never recalculated.
+        "canonical_week_diet": canonical_week_diet,
+        "diet_plan_trace": canonical_week_diet,
         "replacement_optimization": replacement_optimization,
         "nutrition_generation_status": nutrition_generation_status,
         "nutrition_generation_missing_reasons": nutrition_generation_missing_reasons,
