@@ -67,7 +67,17 @@ def test_frozen_golden_cases_get_structural_trace_and_e_pending_marker():
         assert all(session["session_role"] in {"FORMAL_AEROBIC", "RESISTANCE", "FLEXIBILITY"} for day in trace["daily_schedule"] for session in day["sessions"])
         if case_id == "SYN-E01":
             assert trace["context_snapshot"]["formal_aerobic_eligibility"]["status"] == "NOT_ASSESSED"
-            assert trace["context_snapshot"]["e_formal_aerobic_validation"]["status"] == "PENDING_REVIEW"
+            validation = trace["context_snapshot"]["e_formal_aerobic_validation"]
+            assert validation["eligibility_status"] == "NOT_ASSESSED"
+            assert validation["status"] == "FAIL"
+            assert validation["reason_codes"] == ["E_ELIGIBILITY_NOT_ASSESSED"]
+            assert validation["formal_aerobic_days_target"] is None
+            assert isinstance(validation["formal_aerobic_days_target"], (int, float, type(None)))
+            assert not isinstance(validation["formal_aerobic_days_target"], (list, tuple, range))
+            assert trace["weekly_schedule_declared"]["formal_aerobic_days_target"] == (2, 3)
+            assert trace["weekly_schedule_derived"]["formal_aerobic_days_actual"] == 3
+            assert "PENDING_REVIEW" not in validation.values()
+            assert trace["trace_materialization_status"] == "FULL"
 
 
 def test_f_overlay_context_keeps_underlying_primary_and_manual_review_reason():
@@ -81,4 +91,3 @@ def test_f_overlay_context_keeps_underlying_primary_and_manual_review_reason():
     assert trace["context_snapshot"]["complexity_overlay"] == "F"
     assert trace["context_snapshot"]["display_phenotype"] == "F"
     assert trace["context_snapshot"]["complexity_reduction"]["applied"] is True
-

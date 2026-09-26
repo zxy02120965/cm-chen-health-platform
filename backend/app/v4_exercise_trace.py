@@ -270,8 +270,17 @@ def build_canonical_exercise_week(
         "exercise_dose_status": dose_status,
     }
     if context["primary_nutrition_phenotype"] == "E":
-        context["formal_aerobic_eligibility"] = {"status": "NOT_ASSESSED", "reasons": ["V4_E_ELIGIBILITY_PENDING_PHASE_3B_2"]}
-        context["e_formal_aerobic_validation"] = {"status": "PENDING_REVIEW"}
+        eligibility_reason = "V4_E_ELIGIBILITY_PENDING_PHASE_3B_2"
+        context["formal_aerobic_eligibility"] = {"status": "NOT_ASSESSED", "reasons": [eligibility_reason]}
+        context["e_formal_aerobic_validation"] = {
+            "eligibility_status": "NOT_ASSESSED",
+            "formal_aerobic_days_target": None,
+            "zero_day_reason_present": False,
+            "functional_activity_preserved_when_safe": None,
+            "status": "FAIL",
+            "reason_codes": ["E_ELIGIBILITY_NOT_ASSESSED"],
+        }
+        manual_review.append(eligibility_reason)
     if context["complexity_overlay"] == "F":
         context["complexity_reduction"] = {
             "applied": True,
