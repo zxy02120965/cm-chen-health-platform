@@ -274,9 +274,9 @@ def test_p25_warn_days_require_nutrition_review_and_weekly_summary():
     payload["q30_intake"] = "减少25%"
     plan = build_v2_plan(payload, assess_payload(payload), active_configs=candidate_test_profile())
 
-    # The whole-day replacement pass should resolve the former D1
-    # protein-overshoot/energy-deficit warning without changing the medical
-    # target or portion boundaries.
+    # V4 scale coordination changes the former legacy-scale outcome: closure
+    # now stays within the frozen component-specific scale sets, so this day
+    # may already be closed without a replacement pass.
     assert plan["nutrition_review_required"] is False
     review = plan["nutrition_review"]
     assert review["warn_days"] == []
@@ -287,8 +287,9 @@ def test_p25_warn_days_require_nutrition_review_and_weekly_summary():
     assert summary["days_pass"] + summary["days_warn"] + summary["days_incomplete"] == 7
     assert summary["average_energy_actual"] is not None
     assert summary["average_energy_delta_pct"] is not None
-    assert plan["replacement_optimization"][0]["accepted"] is True
-    assert plan["nutrition_closure"][0]["energy_actual"] > 1600
+    assert plan["replacement_optimization"][0]["accepted"] is False
+    assert plan["nutrition_trace"]["v4_scale_coordination"]["status"] == "PASS"
+    assert plan["nutrition_trace"]["v4_scale_coordination"]["invalid_legacy_scale_prevented"] > 0
     assert plan["nutrition_closure"][0]["protein_actual"] <= 65 * 1.2
 
     recovery_payload = _payload("SYN-P2-REVIEW-E", weight=60)
@@ -307,19 +308,17 @@ def test_p25_warn_days_require_nutrition_review_and_weekly_summary():
     assert recovery["nutrition_review"]["incomplete_days"] == list(range(1, 8))
 
 
-def test_d1_replacement_is_bounded_and_traceable():
+def test_d1_scale_coordination_is_bounded_and_traceable():
     payload = _payload("SYN-P2-REPLACEMENT-D1", weight=50)
     payload["q30_intake"] = "减少25%"
     plan = build_v2_plan(payload, assess_payload(payload), active_configs=candidate_test_profile())
     replacement = plan["replacement_optimization"][0]
-    assert replacement["triggered"] is True
-    assert replacement["accepted"] is True
-    assert replacement["replacements"]
-    assert replacement["before_energy"] == 1316.9
-    assert replacement["after_energy"] > replacement["before_energy"]
-    assert replacement["after_protein"] < replacement["before_protein"]
+    assert replacement["triggered"] is False
+    assert replacement["accepted"] is False
+    assert replacement["replacements"] == []
+    assert plan["nutrition_trace"]["v4_scale_coordination"]["status"] == "PASS"
     assert replacement["candidate_attempts"] >= len(replacement["replacements"])
-    assert replacement["replacement_change_count"] >= 1
+    assert replacement["replacement_change_count"] == 0
     assert replacement["EXECUTION_COMPLEXITY"] in {"LOW", "MODERATE", "HIGH"}
     assert all(item["reason"] in {
         "replace_protein_to_reduce_protein_density",

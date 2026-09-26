@@ -470,3 +470,16 @@ def load_v4_food_data() -> V4FoodRuntime:
 
 def clear_v4_food_data_cache() -> None:
     load_v4_food_data.cache_clear()
+
+
+def get_allowed_component_scales(component_id: str) -> tuple[float, ...]:
+    """Return the frozen V1.2 allowed scales for one standard component.
+
+    This is the single runtime provider used by downstream selection/closure
+    code.  It deliberately does not synthesize a default scale: a missing
+    component or an invalid frozen asset is an explicit data error.
+    """
+    component_key = str(component_id or "").strip()
+    if not component_key:
+        raise V4FoodDataError("component_id is required for allowed scale lookup")
+    return load_v4_food_data().component(component_key).allowed_scales

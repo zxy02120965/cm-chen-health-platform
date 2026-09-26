@@ -20,11 +20,14 @@ def _mode(energy_state: dict[str, Any] | None) -> str:
 
 
 def _failure_item(day: int, meal: str, index: int, legacy: dict[str, Any], error: Exception) -> dict[str, Any]:
+    scale = legacy.get("portion_scale")
+    if scale in (None, ""):
+        scale = 1.0
     return {
         "food_item_id": f"D{day}-{meal}-{index + 1}-{legacy.get('component_id') or 'UNKNOWN'}",
         "food_item_type": "STANDARD_COMPONENT",
         "component_id": legacy.get("component_id"),
-        "component_portion_scale": legacy.get("portion_scale"),
+        "component_portion_scale": scale,
         "category": legacy.get("category"),
         "dish_name": legacy.get("dish_name") or legacy.get("meal_name"),
         "ingredients": [],

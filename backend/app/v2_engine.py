@@ -851,12 +851,28 @@ def _scale_amount(value: Any, factor: float) -> Any:
 
 
 def _portion_options_for(component: dict[str, Any]) -> list[float]:
-    """Return portion multipliers using V1.7 boundaries as canonical values.
+    """Return portion multipliers from the component's V4 frozen scale set.
 
-    Legacy components may only expose ``portion_options``.  For those rows the
-    historical list remains the compatibility fallback; V1.7 rows always use
-    min/max/step and only retain portion_options for audit/trace purposes.
+    A real STANDARD_COMPONENT is identified by a component_id present in the
+    frozen V1.2 runtime catalogue.  Its allowed scales are the only values
+    closure/replacement may select.  Anonymous legacy test objects retain the
+    old min/max/step or portion_options fallback and are not V4 runtime data.
     """
+    component_id = str(component.get("component_id") or "").strip()
+    if component_id:
+        from .v4_food_data import V4FoodDataError, get_allowed_component_scales
+        try:
+            allowed = get_allowed_component_scales(component_id)
+        except V4FoodDataError as exc:
+            # An identified but unknown component is not a V4 candidate and
+            # must not receive a fabricated default scale.  Errors loading or
+            # validating the frozen asset must not silently fall back either.
+            if str(exc).startswith("unknown component_id:"):
+                return []
+            raise
+        else:
+            return [float(value) for value in allowed]
+
     minimum = _number_or_none(component.get("portion_min"))
     maximum = _number_or_none(component.get("portion_max"))
     step = _number_or_none(component.get("portion_step"))
@@ -881,6 +897,77 @@ def _portion_options_for(component: dict[str, Any]) -> list[float]:
             if number is not None and number > 0:
                 values.append(number)
     return sorted({round(value, 4) for value in values}) or [1.0]
+
+
+def _legacy_scale_options_for(component: dict[str, Any]) -> list[float]:
+    """Return the pre-V4 scale candidates for audit comparison only."""
+    raw = component.get("portion_options")
+    if isinstance(raw, (list, tuple)):
+        values = [_number_or_none(value) for value in raw]
+        return sorted({round(value, 4) for value in values if value is not None and value > 0})
+    minimum = _number_or_none(component.get("portion_min"))
+    maximum = _number_or_none(component.get("portion_max"))
+    step = _number_or_none(component.get("portion_step"))
+    if minimum is None or maximum is None or step is None or minimum <= 0 or maximum < minimum or step <= 0:
+        return [1.0]
+    values: list[float] = []
+    index = 0
+    while minimum + index * step <= maximum + max(step, 1.0) * 1e-9:
+        values.append(round(minimum + index * step, 8))
+        index += 1
+    return sorted({round(value, 4) for value in values}) or [1.0]
+
+
+def _v4_scale_coordination_diagnostic(
+    rotating_meals: list[dict[str, dict[str, Any]]],
+    daily_closures: list[dict[str, Any]],
+    replacement_optimization: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Summarize V4 scale coordination without becoming a clinical rule."""
+    from .v4_food_data import V4FoodDataError, get_allowed_component_scales
+
+    total = 0
+    valid = 0
+    prevented = 0
+    no_legal = 0
+    for day in rotating_meals:
+        for meal in day.values():
+            for component in meal.get("components") or []:
+                component_id = str(component.get("component_id") or "").strip()
+                if not component_id:
+                    continue
+                total += 1
+                try:
+                    allowed = tuple(get_allowed_component_scales(component_id))
+                except V4FoodDataError as exc:
+                    if str(exc).startswith("unknown component_id:"):
+                        continue
+                    no_legal += 1
+                    continue
+                if not allowed:
+                    no_legal += 1
+                    continue
+                legacy_options = _legacy_scale_options_for(component)
+                prevented += sum(1 for value in legacy_options if value not in allowed)
+                current = _number_or_none(component.get("portion_scale"))
+                if current is None:
+                    current = 1.0
+                if any(abs(current - value) <= 1e-6 for value in allowed):
+                    valid += 1
+                else:
+                    no_legal += 1
+    best_effort = sum(1 for closure in daily_closures if closure.get("closure_constraint_status") == "BEST_EFFORT_WITHIN_ALLOWED_SCALES")
+    rejected = sum(int(item.get("scale_rejections") or 0) for item in replacement_optimization)
+    status = "PASS" if no_legal == 0 else "REVIEW_REQUIRED"
+    return {
+        "total_standard_component_items": total,
+        "items_with_valid_allowed_scale": valid,
+        "invalid_legacy_scale_prevented": prevented,
+        "no_legal_scale_components": no_legal,
+        "closure_best_effort_count": best_effort,
+        "replacement_scale_rejections": rejected,
+        "status": status,
+    }
 
 
 def _refresh_composite_meal(meal: dict[str, Any]) -> dict[str, Any]:
@@ -967,7 +1054,18 @@ def _close_day_meals(day: int, day_meals: dict[str, dict[str, Any]], *, daily_en
         for component in parts:
             # Filling energy by enlarging vegetables is not an acceptable
             # fallback; their documented portion remains fixed at 1x.
-            choices.append([1.0] if component.get("category") == "vegetable" else _portion_options_for(component))
+            component_options = _portion_options_for(component)
+            if component.get("category") == "vegetable":
+                choices.append([1.0] if any(abs(value - 1.0) <= 1e-6 for value in component_options) else [])
+            else:
+                choices.append(component_options)
+        if any(not options for options in choices):
+            limited_reasons.append(f"{slot}餐次存在无可用合法份量scale的组件")
+            _refresh_composite_meal(meal)
+            meal["meal_energy_target"] = target
+            meal["meal_energy_actual"] = meal.get("estimated_energy")
+            meal_actual[slot] = _number_or_none(meal.get("estimated_energy"))
+            continue
         def evaluate(scales: tuple[float, ...]) -> tuple[float, float, float, float, float]:
             energy = protein = carbohydrate = fat = 0.0
             vegetable_deviation = 0.0
@@ -1117,9 +1215,14 @@ def _close_day_meals(day: int, day_meals: dict[str, dict[str, Any]], *, daily_en
     else:
         closure_status = "WARN"
         reasons = ["目录份量选项下能量或蛋白目标仍有偏差"]
+    closure_constraint_status = (
+        "BEST_EFFORT_WITHIN_ALLOWED_SCALES"
+        if closure_status == "WARN" and limited_reasons
+        else None
+    )
     reasons.extend(limited_reasons)
     adjustments.extend(energy_adjustments)
-    closure = {"day": day, "energy_target": daily_energy, "energy_actual": round(total_energy, 3) if meal_actual else None, "energy_delta_pct": energy_delta, "protein_target": protein_target, "protein_actual": round(total_protein, 3), "protein_delta_pct": protein_delta, "carbohydrate_target": carb_target, "carbohydrate_actual": round(total_carb, 3), "fat_target": fat_target, "fat_actual": round(total_fat, 3), "closure_status": closure_status, "closure_phase": "energy_closure" if energy_phase_applied else "protein_closure", "reasons": reasons, "portion_adjustment_limited": bool(limited_reasons)}
+    closure = {"day": day, "energy_target": daily_energy, "energy_actual": round(total_energy, 3) if meal_actual else None, "energy_delta_pct": energy_delta, "protein_target": protein_target, "protein_actual": round(total_protein, 3), "protein_delta_pct": protein_delta, "carbohydrate_target": carb_target, "carbohydrate_actual": round(total_carb, 3), "fat_target": fat_target, "fat_actual": round(total_fat, 3), "closure_status": closure_status, "closure_constraint_status": closure_constraint_status, "closure_phase": "energy_closure" if energy_phase_applied else "protein_closure", "reasons": reasons, "portion_adjustment_limited": bool(limited_reasons)}
     details = {"meal_energy_target": {"day": day, **meal_target}, "meal_energy_actual": {"day": day, **meal_actual}, "protein_distribution": {"day": day, **protein_distribution}, "portion_adjustments": adjustments, "closure_phase": "energy_closure" if energy_phase_applied else "protein_closure"}
     return closure, details
 
@@ -1368,6 +1471,7 @@ def _optimize_day_replacements(
         "after_protein": baseline_closure.get("protein_actual"),
         "accepted": False,
         "candidate_attempts": 0,
+        "scale_rejections": 0,
         "replacement_change_count": 0,
         "EXECUTION_COMPLEXITY": "LOW",
     }
@@ -1427,6 +1531,18 @@ def _optimize_day_replacements(
                 )
                 for candidate in candidates:
                     trace["candidate_attempts"] += 1
+                    from .v4_food_data import V4FoodDataError, get_allowed_component_scales
+                    candidate_id = str(candidate.get("component_id") or "").strip()
+                    try:
+                        allowed_scales = get_allowed_component_scales(candidate_id)
+                    except V4FoodDataError as exc:
+                        if not str(exc).startswith("unknown component_id:"):
+                            trace["scale_rejections"] += 1
+                            continue
+                        allowed_scales = ()
+                    if not allowed_scales:
+                        trace["scale_rejections"] += 1
+                        continue
                     trial_unclosed_day = _replace_day_component(current_unclosed_day, slot=slot, category=category, replacement=candidate)
                     trial_day = deepcopy(trial_unclosed_day)
                     trial_closure, trial_details = _close_day_meals(
@@ -1842,6 +1958,11 @@ def build_v2_plan(
     }
     nutrition_trace["portion_adjustment_limited"] = portion_adjustment_limited
     nutrition_trace["portion_adjustment_reason"] = list(dict.fromkeys(portion_adjustment_reasons))
+    nutrition_trace["v4_scale_coordination"] = _v4_scale_coordination_diagnostic(
+        rotating_meals,
+        daily_closures,
+        replacement_optimization,
+    )
     # Phase 2B: materialize only after the final replacement/closure decision.
     # The returned compatibility meals are projections of the same canonical
     # object; no later nutrition or portion optimizer runs after this point.
