@@ -1,0 +1,27 @@
+{
+  "fixture_id": "SYN-F01",
+  "fixture_role": "V4_CANONICAL_CONTRACT_FIXTURE",
+  "assessment_payload": {
+    "sex": "\u5973", "height_cm": 158, "weight_kg": 78, "q14_height": 158, "q15_weight": 78,
+    "q18_bodyFat": 41, "q22_bmr": 1390, "q24_skeletalMuscle": 20, "q26_smi": 5.8,
+    "q27_walkTest": "\u8ddd\u79bb=300 m\uff1b\u5fc3\u7387=84\u2013134 \u6b21/\u5206\uff1bSpO\u2082=97\u201394%\uff1bBORG=6",
+    "q6_surgeryWindow": "4\u20138\u5468", "q12_respiratorySymptoms": ["\u65e0"],
+    "q28_weightChange": "\u7a33\u5b9a", "q29_appetite": "\u6b63\u5e38", "q30_intake": "\u6b63\u5e38",
+    "q31_eatingDifficulties": ["\u65e0"], "q32_foodAllergy": ["\u65e0"],
+    "q34_dietPattern": ["\u5916\u5356\u591a\uff1b\u9ad8\u6cb9\uff1b\u9ad8\u76d0\uff1b\u751c\u98df\u591a"],
+    "q43_metabolicConditions": ["\u9ad8\u8840\u538b\uff1b\u7cd6\u5c3f\u75c5\uff1b\u8840\u8102\u5f02\u5e38\uff1b\u7761\u7720\u547c\u5438\u6682\u505c"],
+    "q51_executionBarriers": ["\u5916\u5356\u591a\uff1b\u75bc\u75db\u9650\u5236\uff1b\u4e0d\u77e5\u9053\u600e\u4e48\u8fd0\u52a8\uff1b\u65f6\u95f4\u5c11"],
+    "q56_goal": "\u9996\u8981\u76ee\u6807=\u4ee3\u8c22\u63a7\u5236\uff1b\u76ee\u6807\u5468\u671f=\u81ea\u52a8\u8bfb\u53d6Q6\uff1a4\u20138\u5468\uff1b\u4f53\u91cd\u76ee\u6807=\u4e0d\u8bbe\u5177\u4f53\u76ee\u6807\uff1b\u5176\u4ed6\u91cd\u70b9=\u808c\u8089\u4e0d\u4e0b\u964d\uff1b\u8170\u56f4\u4e0b\u964d\uff1b\u63a7\u7cd6\uff1b\u964d\u8102\uff1b\u63d0\u9ad8\u8fd0\u52a8\u80fd\u529b\uff1b\u6539\u5584\u80ba\u529f\u80fd",
+    "age_years": 54
+  },
+  "expected_contract": {
+    "primary_nutrition_phenotype": "B", "complexity_overlay": "F", "display_phenotype": "F", "safety_level": "YELLOW",
+    "energy_status": "PROVISIONAL", "provisional_energy_target_kcal": 1446, "diet_generation_mode": "EXACT_PROVISIONAL_REVIEW", "publication_blocked": true
+  },
+  "fixture_provenance": {
+    "source_contract": "ZXY_回归测试与后端验收规范_V1.0",
+    "legacy_source": "Q1-Q56_合成患者测试数据_A-F分型_18例.xlsx",
+    "notes": ["当前运行预期存在 B→C + F 与 GREEN→YELLOW 的已知契约差异；不修改患者事实。"]
+  },
+  "known_contract_gap": {"present": true, "fields": ["primary_nutrition_phenotype", "safety_level", "provisional_energy_target_kcal", "publication_blocked"], "reason": "Current production phenotype precedence selects C before B for pain limitation + exercise-education barrier; current Safety gate lacks an explicit trigger for these exact facts; the end-to-end candidate runtime also uses its existing P2/PAL candidate configuration and governance projection.", "resolution_status": "PENDING_RULE_ALIGNMENT"}
+}

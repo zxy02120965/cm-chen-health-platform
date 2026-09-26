@@ -1,0 +1,25 @@
+{
+  "fixture_id": "SYN-A01",
+  "fixture_role": "V4_CANONICAL_CONTRACT_FIXTURE",
+  "assessment_payload": {
+    "sex": "\u5973", "height_cm": 160, "weight_kg": 68, "q14_height": 160, "q15_weight": 68,
+    "q18_bodyFat": 35, "q22_bmr": 1360, "q24_skeletalMuscle": 22.5, "q26_smi": 6.7,
+    "q27_walkTest": "\u8ddd\u79bb=520 m\uff1b\u5fc3\u7387=76\u2013112 \u6b21/\u5206\uff1bSpO\u2082=98\u201396%\uff1bBORG=3",
+    "q6_surgeryWindow": "4\u20138\u5468", "q12_respiratorySymptoms": ["\u65e0"],
+    "q28_weightChange": "\u7a33\u5b9a", "q29_appetite": "\u6b63\u5e38", "q30_intake": "\u6b63\u5e38",
+    "q31_eatingDifficulties": ["\u65e0"], "q32_foodAllergy": ["\u65e0"],
+    "q34_dietPattern": ["\u4e09\u9910\u89c4\u5f8b\uff1b\u751c\u98df\u591a\uff1b\u852c\u83dc\u5c11"],
+    "q43_metabolicConditions": ["\u65e0"], "q51_executionBarriers": ["\u4e0d\u77e5\u9053\u600e\u4e48\u5403"],
+    "q56_goal": "\u672a\u8bbe\u5b9a\uff08\u9009\u586b\uff1b\u6309\u7cfb\u7edf\u9ed8\u8ba4\u89c4\u5219\u751f\u6210\uff09", "age_years": 54
+  },
+  "expected_contract": {
+    "primary_nutrition_phenotype": "A", "complexity_overlay": "none", "display_phenotype": "A", "safety_level": "GREEN",
+    "energy_status": "PROVISIONAL", "provisional_energy_target_kcal": 1561, "diet_generation_mode": "EXACT_PROVISIONAL_REVIEW", "publication_blocked": true
+  },
+  "fixture_provenance": {
+    "source_contract": "ZXY_回归测试与后端验收规范_V1.0",
+    "legacy_source": "Q1-Q56_合成患者测试数据_A-F分型_18例.xlsx",
+    "notes": []
+  },
+  "known_contract_gap": {"present": true, "fields": ["provisional_energy_target_kcal", "publication_blocked"], "reason": "Current end-to-end candidate runtime uses its existing P2/PAL candidate configuration and governance projection; it does not yet reproduce the frozen direct BMR/PAL fixture target or publication flag.", "resolution_status": "PENDING_RULE_ALIGNMENT"}
+}

@@ -1,0 +1,26 @@
+{
+  "fixture_id": "SYN-E01",
+  "fixture_role": "V4_CANONICAL_CONTRACT_FIXTURE",
+  "assessment_payload": {
+    "sex": "\u7537", "height_cm": 174, "weight_kg": 61, "q14_height": 174, "q15_weight": 61,
+    "q18_bodyFat": 16, "q22_bmr": 1340, "q24_skeletalMuscle": 22, "q26_smi": 6.4,
+    "q27_walkTest": "\u8ddd\u79bb=370 m\uff1b\u5fc3\u7387=78\u2013122 \u6b21/\u5206\uff1bSpO\u2082=97\u201395%\uff1bBORG=5",
+    "q6_surgeryWindow": "4\u20138\u5468", "q12_respiratorySymptoms": ["\u54b3\u55fd"],
+    "q28_weightChange": "\u4e0d\u660e\u539f\u56e0\u4e0b\u964d", "q29_appetite": "\u660e\u663e\u4e0b\u964d", "q30_intake": "\u51cf\u5c1150%",
+    "q31_eatingDifficulties": ["\u65e9\u9971\uff1b\u6076\u5fc3"], "q32_foodAllergy": ["\u65e0"],
+    "q34_dietPattern": ["\u4e09\u9910\u89c4\u5f8b\uff1b\u86cb\u767d\u8d28\u4e0d\u8db3"],
+    "q43_metabolicConditions": ["\u65e0"], "q51_executionBarriers": ["\u4e0d\u77e5\u9053\u600e\u4e48\u5403\uff1b\u5176\u4ed6\uff1a\u75b2\u52b3"],
+    "q56_goal": "\u9996\u8981\u76ee\u6807=\u505c\u6b62\u7ee7\u7eed\u4e0b\u964d\uff1b\u76ee\u6807\u5468\u671f=\u81ea\u52a8\u8bfb\u53d6Q6\uff1a4\u20138\u5468\uff1b\u4f53\u91cd\u76ee\u6807=\u4e0d\u8bbe\u5177\u4f53\u76ee\u6807\uff1b\u5176\u4ed6\u91cd\u70b9=\u808c\u8089\u4e0d\u4e0b\u964d\uff1b\u63d0\u9ad8\u8fd0\u52a8\u80fd\u529b",
+    "age_years": 54
+  },
+  "expected_contract": {
+    "primary_nutrition_phenotype": "E", "complexity_overlay": "none", "display_phenotype": "E", "safety_level": "YELLOW",
+    "energy_status": "UNAVAILABLE", "provisional_energy_target_kcal": null, "diet_generation_mode": "STRUCTURE_ONLY", "publication_blocked": true
+  },
+  "fixture_provenance": {
+    "source_contract": "ZXY_回归测试与后端验收规范_V1.0",
+    "legacy_source": "Q1-Q56_合成患者测试数据_A-F分型_18例.xlsx",
+    "notes": []
+  },
+  "known_contract_gap": {"present": true, "fields": ["publication_blocked"], "reason": "The current end-to-end candidate runtime keeps publication governance separate and does not expose the frozen fixture's publication_blocked flag directly.", "resolution_status": "PENDING_RULE_ALIGNMENT"}
+}

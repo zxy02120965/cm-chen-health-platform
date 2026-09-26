@@ -1,0 +1,27 @@
+{
+  "fixture_id": "SYN-B01",
+  "fixture_role": "V4_CANONICAL_CONTRACT_FIXTURE",
+  "assessment_payload": {
+    "sex": "\u7537", "height_cm": 170, "weight_kg": 92, "q14_height": 170, "q15_weight": 92,
+    "q18_bodyFat": 34, "q22_bmr": 1770, "q24_skeletalMuscle": 33.5, "q26_smi": 7.4,
+    "q27_walkTest": "\u8ddd\u79bb=430 m\uff1b\u5fc3\u7387=82\u2013132 \u6b21/\u5206\uff1bSpO\u2082=97\u201394%\uff1bBORG=5",
+    "q6_surgeryWindow": "4\u20138\u5468", "q12_respiratorySymptoms": ["\u6d3b\u52a8\u6c14\u4fc3"],
+    "q28_weightChange": "\u7a33\u5b9a", "q29_appetite": "\u589e\u52a0", "q30_intake": "\u6b63\u5e38",
+    "q31_eatingDifficulties": ["\u65e0"], "q32_foodAllergy": ["\u65e0"],
+    "q34_dietPattern": ["\u4e09\u9910\u89c4\u5f8b\uff1b\u9ad8\u6cb9\uff1b\u9ad8\u76d0\uff1b\u5bb5\u591c"],
+    "q43_metabolicConditions": ["\u9ad8\u8840\u538b\uff1b\u8840\u8102\u5f02\u5e38\uff1b\u8102\u80aa\u809d"],
+    "q51_executionBarriers": ["\u65f6\u95f4\u5c11\uff1b\u4e0d\u77e5\u9053\u600e\u4e48\u5403\uff1b\u4e0d\u77e5\u9053\u600e\u4e48\u8fd0\u52a8"],
+    "q56_goal": "\u9996\u8981\u76ee\u6807=\u6807\u51c6\u51cf\u8102\uff1b\u76ee\u6807\u5468\u671f=\u81ea\u52a8\u8bfb\u53d6Q6\uff1a4\u20138\u5468\uff1b\u4f53\u91cd\u76ee\u6807=4\u5468\u5185\u4e0b\u964d3 kg\uff1b\u5176\u4ed6\u91cd\u70b9=\u808c\u8089\u4e0d\u4e0b\u964d\uff1b\u4f53\u8102\u4e0b\u964d\uff1b\u8170\u56f4\u4e0b\u964d\uff1b\u964d\u8102\uff1b\u63d0\u9ad8\u8fd0\u52a8\u80fd\u529b\uff1b\u6539\u5584\u80ba\u529f\u80fd",
+    "age_years": 54
+  },
+  "expected_contract": {
+    "primary_nutrition_phenotype": "B", "complexity_overlay": "none", "display_phenotype": "B", "safety_level": "YELLOW",
+    "energy_status": "PROVISIONAL", "provisional_energy_target_kcal": 1840, "diet_generation_mode": "EXACT_PROVISIONAL_REVIEW", "publication_blocked": true
+  },
+  "fixture_provenance": {
+    "source_contract": "ZXY_回归测试与后端验收规范_V1.0",
+    "legacy_source": "Q1-Q56_合成患者测试数据_A-F分型_18例.xlsx",
+    "notes": []
+  },
+  "known_contract_gap": {"present": true, "fields": ["provisional_energy_target_kcal", "publication_blocked"], "reason": "Current end-to-end candidate runtime uses its existing P2/PAL candidate configuration and governance projection; it does not yet reproduce the frozen direct BMR/PAL fixture target or publication flag.", "resolution_status": "PENDING_RULE_ALIGNMENT"}
+}
