@@ -854,7 +854,7 @@ def _portion_options_for(component: dict[str, Any]) -> list[float]:
     """Return portion multipliers from the component's V4 frozen scale set.
 
     A real STANDARD_COMPONENT is identified by a component_id present in the
-    frozen V1.2 runtime catalogue.  Its allowed scales are the only values
+    manifest-selected V4 runtime catalogue.  Its allowed scales are the only values
     closure/replacement may select.  Anonymous legacy test objects retain the
     old min/max/step or portion_options fallback and are not V4 runtime data.
     """
@@ -1969,6 +1969,8 @@ def build_v2_plan(
     legacy_rotating_meals = rotating_meals
     try:
         from .v4_diet_materialization import materialize_canonical_week_diet
+        from .v4_food_data import load_v4_food_data
+        active_food_version = load_v4_food_data().asset_provenance.food_execution.version
         canonical_week_diet, projected_rotating_meals = materialize_canonical_week_diet(
             legacy_rotating_meals,
             energy_state=v4_energy_state,
@@ -1977,7 +1979,7 @@ def build_v2_plan(
                 "primary_nutrition_phenotype": nutrition_phenotype,
                 "complexity_overlay": v4_phenotype_contract.get("complexity_overlay"),
                 "energy_state": deepcopy(v4_energy_state),
-                "food_source": "ZXY_WEEK1_V4_FREEZE/V1.2",
+                "food_source": f"ZXY_WEEK1_V4_FREEZE/{active_food_version}",
             },
         )
         rotating_meals = projected_rotating_meals

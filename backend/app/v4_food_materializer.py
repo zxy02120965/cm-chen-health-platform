@@ -59,7 +59,7 @@ def _validate_discrete_and_package(ingredient: IngredientRecord, amount: Decimal
     if "整枚" in rule or "半枚" in rule or "whole_unit" in rule:
         return _close(amount % Decimal("50"), Decimal("0"))
     # Package/net-content rules are represented by their explicit min/max/step
-    # grid in V1.2.  Do not invent package sizes here.
+    # grid in the manifest-selected Ingredient Master.  Do not invent package sizes here.
     if "包装" in rule or "净含量" in rule:
         return True
     return True

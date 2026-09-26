@@ -218,12 +218,43 @@ class StandardComponentRecord:
 
 
 @dataclass(frozen=True)
+class AssetProvenance:
+    role: str
+    version: str
+    relative_path: str
+    sha256: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "role": self.role,
+            "version": self.version,
+            "relative_path": self.relative_path,
+            "sha256": self.sha256,
+        }
+
+
+@dataclass(frozen=True)
+class Week1FoodAssetProvenance:
+    manifest_relative_path: str
+    ingredient_master: AssetProvenance
+    food_execution: AssetProvenance
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "manifest_relative_path": self.manifest_relative_path,
+            "ingredient_master": self.ingredient_master.to_dict(),
+            "food_execution": self.food_execution.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
 class V4FoodRuntime:
     manifest_path: Path
     ingredient_source: Path
     food_source: Path
     ingredients: Mapping[str, IngredientRecord]
     components: Mapping[str, StandardComponentRecord]
+    asset_provenance: Week1FoodAssetProvenance
 
     def ingredient(self, ingredient_id: str) -> IngredientRecord:
         try:
@@ -238,16 +269,19 @@ class V4FoodRuntime:
             raise V4FoodDataError(f"unknown component_id: {component_id}") from None
 
 
-def _asset_paths() -> tuple[Path, Path]:
+def _read_manifest() -> dict[str, Any]:
     if not MANIFEST_PATH.exists():
         raise V4FoodDataError(f"missing V4 manifest: {MANIFEST_PATH}")
-    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def _active_asset_entries() -> dict[str, dict[str, Any]]:
+    manifest = _read_manifest()
     by_role = {asset.get("role"): asset for asset in manifest.get("assets", []) if asset.get("active") is True}
     ingredient = by_role.get("MDT_INGREDIENT_MASTER")
     food = by_role.get("MDT_STANDARD_COMPONENT_EXECUTION")
     if not ingredient or not food:
-        raise V4FoodDataError("manifest must contain active Ingredient Master and FOOD V1.2 assets")
-    paths: list[Path] = []
+        raise V4FoodDataError("manifest must contain active Ingredient Master and FOOD execution assets")
     for asset in (ingredient, food):
         path = ASSET_ROOT / str(asset["relative_path"])
         if not path.exists():
@@ -255,12 +289,45 @@ def _asset_paths() -> tuple[Path, Path]:
         actual = hashlib.sha256(path.read_bytes()).hexdigest()
         if actual != asset.get("sha256"):
             raise V4FoodDataError(f"asset SHA256 mismatch: {path}")
-        paths.append(path)
+    return {
+        "MDT_INGREDIENT_MASTER": ingredient,
+        "MDT_STANDARD_COMPONENT_EXECUTION": food,
+    }
+
+
+def _asset_provenance(entries: Mapping[str, Mapping[str, Any]]) -> Week1FoodAssetProvenance:
+    def build(role: str) -> AssetProvenance:
+        entry = entries[role]
+        return AssetProvenance(
+            role=str(entry.get("role") or role),
+            version=str(entry.get("version") or ""),
+            relative_path=Path(str(entry["relative_path"])).as_posix(),
+            sha256=str(entry.get("sha256") or ""),
+        )
+
+    return Week1FoodAssetProvenance(
+        manifest_relative_path=MANIFEST_PATH.relative_to(ROOT).as_posix(),
+        ingredient_master=build("MDT_INGREDIENT_MASTER"),
+        food_execution=build("MDT_STANDARD_COMPONENT_EXECUTION"),
+    )
+
+
+def get_week1_food_asset_provenance() -> Week1FoodAssetProvenance:
+    """Return immutable provenance for the manifest-selected active assets."""
+    return _asset_provenance(_active_asset_entries())
+
+
+def _asset_paths() -> tuple[Path, Path]:
+    entries = _active_asset_entries()
+    paths = [ASSET_ROOT / str(entries[role]["relative_path"]) for role in ("MDT_INGREDIENT_MASTER", "MDT_STANDARD_COMPONENT_EXECUTION")]
     return paths[0], paths[1]
 
 
 def _load_runtime() -> V4FoodRuntime:
-    ingredient_path, food_path = _asset_paths()
+    entries = _active_asset_entries()
+    ingredient_path = ASSET_ROOT / str(entries["MDT_INGREDIENT_MASTER"]["relative_path"])
+    food_path = ASSET_ROOT / str(entries["MDT_STANDARD_COMPONENT_EXECUTION"]["relative_path"])
+    provenance = _asset_provenance(entries)
 
     ingredient_rows = _read_xlsx_sheet(ingredient_path, INGREDIENT_SHEET)
     ingredient_headers, ingredient_records = _records(ingredient_rows)
@@ -459,6 +526,7 @@ def _load_runtime() -> V4FoodRuntime:
         food_source=food_path,
         ingredients=MappingProxyType(ingredients),
         components=MappingProxyType(components),
+        asset_provenance=provenance,
     )
 
 
@@ -473,7 +541,7 @@ def clear_v4_food_data_cache() -> None:
 
 
 def get_allowed_component_scales(component_id: str) -> tuple[float, ...]:
-    """Return the frozen V1.2 allowed scales for one standard component.
+    """Return manifest-selected allowed scales for one standard component.
 
     This is the single runtime provider used by downstream selection/closure
     code.  It deliberately does not synthesize a default scale: a missing

@@ -12,6 +12,8 @@ from .v4_nutrition_recalculation import recalculate_ingredient_nutrition
 
 TRACE_SCHEMA_VERSION = "FOOD_TRACE_V4_2"
 MATERIALIZATION_SOURCE = "COMPONENT_EXECUTION_MAPPING_V1_2"
+MATERIALIZATION_METHOD = "COMPONENT_EXECUTION_MAPPING"
+AI_MATERIALIZATION_METHOD = "INGREDIENT_MASTER_EXECUTION_GRID"
 
 
 def _mode(energy_state: dict[str, Any] | None) -> str:
@@ -19,7 +21,7 @@ def _mode(energy_state: dict[str, Any] | None) -> str:
     return str(state.get("diet_generation_mode") or "EXACT_PROVISIONAL_REVIEW")
 
 
-def _failure_item(day: int, meal: str, index: int, legacy: dict[str, Any], error: Exception) -> dict[str, Any]:
+def _failure_item(day: int, meal: str, index: int, legacy: dict[str, Any], error: Exception, *, runtime: V4FoodRuntime) -> dict[str, Any]:
     scale = legacy.get("portion_scale")
     if scale in (None, ""):
         scale = 1.0
@@ -34,13 +36,15 @@ def _failure_item(day: int, meal: str, index: int, legacy: dict[str, Any], error
         "simple_method": legacy.get("cooking_method") or legacy.get("brief_instructions"),
         "simple_method_status": "NEEDS_REVIEW" if not (legacy.get("cooking_method") or legacy.get("brief_instructions")) else "AVAILABLE",
         "materialization_source": MATERIALIZATION_SOURCE,
+        "materialization_method": MATERIALIZATION_METHOD,
         "nutrition_status": "NEEDS_SOURCE_RECALC",
         "planned_nutrition": None,
         "nutrition_recalculation_status": "PENDING",
         "nutrition_recalculation_validation": {"status": "FAIL", "reason": str(error)},
         "execution_materialization_status": "FAIL",
         "materialization_error": str(error),
-        "source_version": "V1.2",
+        "source_version": runtime.asset_provenance.food_execution.version,
+        "source_asset_role": runtime.asset_provenance.food_execution.role,
         "review_flags": ["MATERIALIZATION_FAIL"],
     }
 
@@ -61,13 +65,15 @@ def _materialize_item(day: int, meal: str, index: int, legacy: dict[str, Any], *
                 "simple_method": legacy.get("simple_method"),
                 "simple_method_status": "NEEDS_REVIEW",
                 "materialization_source": "AI_GENERATED_DISH_EXECUTION_GRID",
+                "materialization_method": AI_MATERIALIZATION_METHOD,
                 "nutrition_status": "NEEDS_SOURCE_RECALC",
                 "planned_nutrition": None,
                 "nutrition_recalculation_status": "PENDING",
                 "nutrition_recalculation_validation": {"status": "FAIL", "reason": str(exc)},
                 "execution_materialization_status": "FAIL",
                 "materialization_error": str(exc),
-                "source_version": "V1.2",
+                "source_version": runtime.asset_provenance.ingredient_master.version,
+                "source_asset_role": runtime.asset_provenance.ingredient_master.role,
                 "review_flags": ["MATERIALIZATION_FAIL"],
             }
         ingredients = result.get("ingredients") or []
@@ -82,12 +88,14 @@ def _materialize_item(day: int, meal: str, index: int, legacy: dict[str, Any], *
             "simple_method": legacy.get("simple_method"),
             "simple_method_status": "AVAILABLE" if legacy.get("simple_method") else "NEEDS_REVIEW",
             "materialization_source": "AI_GENERATED_DISH_EXECUTION_GRID",
+            "materialization_method": AI_MATERIALIZATION_METHOD,
             "nutrition_status": nutrition["nutrition_status"],
             "planned_nutrition": nutrition["planned_nutrition"] if _mode(energy_state) != "STRUCTURE_ONLY" else None,
             "nutrition_recalculation_status": nutrition["nutrition_recalculation_status"],
             "nutrition_recalculation_validation": nutrition["nutrition_recalculation_validation"],
             "execution_materialization_status": result["execution_materialization_status"],
-            "source_version": "V1.2",
+            "source_version": runtime.asset_provenance.ingredient_master.version,
+            "source_asset_role": runtime.asset_provenance.ingredient_master.role,
             "review_flags": ["SIMPLE_METHOD_REVIEW"] if not legacy.get("simple_method") else [],
         }
     component_id = str(legacy.get("component_id") or "")
@@ -97,7 +105,7 @@ def _materialize_item(day: int, meal: str, index: int, legacy: dict[str, Any], *
     try:
         result = materialize_standard_component(component_id, scale, energy_state=_mode(energy_state), runtime=runtime)
     except (V4FoodDataError, KeyError, ValueError) as exc:
-        return _failure_item(day, meal, index, legacy, exc)
+        return _failure_item(day, meal, index, legacy, exc, runtime=runtime)
     nutrition = recalculate_ingredient_nutrition(result["ingredients"], runtime=runtime, energy_state=_mode(energy_state))
     method = legacy.get("cooking_method") or legacy.get("brief_instructions")
     item = {
@@ -111,12 +119,14 @@ def _materialize_item(day: int, meal: str, index: int, legacy: dict[str, Any], *
         "simple_method": method,
         "simple_method_status": "AVAILABLE" if method else "NEEDS_REVIEW",
         "materialization_source": MATERIALIZATION_SOURCE,
+        "materialization_method": MATERIALIZATION_METHOD,
         "nutrition_status": nutrition["nutrition_status"],
         "planned_nutrition": nutrition["planned_nutrition"] if _mode(energy_state) != "STRUCTURE_ONLY" else None,
         "nutrition_recalculation_status": nutrition["nutrition_recalculation_status"],
         "nutrition_recalculation_validation": nutrition["nutrition_recalculation_validation"],
         "execution_materialization_status": result["execution_materialization_status"],
-        "source_version": "V1.2",
+        "source_version": runtime.asset_provenance.food_execution.version,
+        "source_asset_role": runtime.asset_provenance.food_execution.role,
         "review_flags": ["SIMPLE_METHOD_REVIEW"] if not method else [],
     }
     if _mode(energy_state) == "STRUCTURE_ONLY":
@@ -226,5 +236,8 @@ def materialize_canonical_week_diet(rotating_meals: list[dict[str, dict[str, Any
         "all_items_have_dish_name": all(bool(item.get("dish_name")) for day in canonical_days for meal in day["meals"].values() for item in meal["food_items"]),
         "all_items_have_structured_ingredients": all(bool(item.get("ingredients")) for day in canonical_days for meal in day["meals"].values() for item in meal["food_items"]),
     }
-    canonical = {"trace_schema_version": TRACE_SCHEMA_VERSION, "trace_materialization_status": trace_status, "generation_context": deepcopy(context_snapshot or {}), "days": canonical_days, "trace_validation": trace_validation}
+    generation_context = deepcopy(context_snapshot or {})
+    generation_context["asset_provenance"] = runtime.asset_provenance.to_dict()
+    generation_context["food_source"] = f"ZXY_WEEK1_V4_FREEZE/{runtime.asset_provenance.food_execution.version}"
+    canonical = {"trace_schema_version": TRACE_SCHEMA_VERSION, "trace_materialization_status": trace_status, "generation_context": generation_context, "days": canonical_days, "trace_validation": trace_validation}
     return canonical, projected_days
