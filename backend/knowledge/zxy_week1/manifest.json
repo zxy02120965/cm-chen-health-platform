@@ -5,8 +5,8 @@
   "exercise_pulmonary_rule_version": "V4.2.1",
   "ui_contract_version": "V1.2",
   "engineering_test_contract_version": "V1.0",
-  "ingredient_master_version": "V1.2",
-  "food_component_execution_version": "V1.2",
+  "ingredient_master_version": "V1.3",
+  "food_component_execution_version": "V1.3",
   "assets": [
     {
       "relative_path": "rules/01_ZXY_MASTER_AGENT_KNOWLEDGE_BASE_FINAL_V4_2_5.md",
@@ -44,17 +44,17 @@
       "active": true
     },
     {
-      "relative_path": "data/ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.2.xlsx",
+      "relative_path": "data/ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.3.xlsx",
       "role": "MDT_INGREDIENT_MASTER",
-      "version": "V1.2",
-      "sha256": "50aca8714a6d55179c60da32070f4be7a5010efc0712e13d2cf010905193818f",
+      "version": "V1.3",
+      "sha256": "e0db11c4e146350a11771e4492d7995a2d99e82636221c7c5a5f0876d1a45150",
       "active": true
     },
     {
-      "relative_path": "data/ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.2.xlsx",
+      "relative_path": "data/ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.3.xlsx",
       "role": "MDT_STANDARD_COMPONENT_EXECUTION",
-      "version": "V1.2",
-      "sha256": "6b5fd88e7b586939cd89aabb4e0366089001f111f02f8f0f7e7acc1d8ec6e198",
+      "version": "V1.3",
+      "sha256": "05fc4cb4bb8b8c970383cb3d82ffa25fe1645182468d22934aaf1c521c63b983",
       "active": true
     }
   ]

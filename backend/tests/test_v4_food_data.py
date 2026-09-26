@@ -12,8 +12,8 @@ def test_v4_runtime_uses_manifest_assets_not_legacy_outputs():
     assert runtime.food_source.parent == ASSET_ROOT / "data"
     assert "outputs" not in str(runtime.ingredient_source).lower()
     assert "outputs" not in str(runtime.food_source).lower()
-    assert runtime.ingredient_source.name.endswith("V1.2.xlsx")
-    assert runtime.food_source.name.endswith("V1.2.xlsx")
+    assert runtime.ingredient_source.name.endswith("V1.3.xlsx")
+    assert runtime.food_source.name.endswith("V1.3.xlsx")
 
 
 def test_v4_runtime_has_unique_component_and_ingredient_ids():
