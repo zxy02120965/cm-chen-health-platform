@@ -1766,6 +1766,7 @@ def build_v2_plan(
     # this engine without a module cycle.
     from .v4_contract import derive_v4_phenotype
     from .v4_energy_state import derive_energy_state
+    from .v4_safety_contract import apply_v4_safety_contract_floor
 
     legacy_phenotype = str(evaluation.get("phenotype_code") or evaluation.get("phenotype") or "A").split("｜", 1)[0].strip()
     v4_phenotype_contract = evaluation.get("v4_phenotype_contract") or derive_v4_phenotype(payload)
@@ -1776,7 +1777,13 @@ def build_v2_plan(
     phenotype = display_phenotype
     q56 = parse_q56(payload.get("q56_goal", payload.get("Q56")))
     liver = evaluation.get("liver", {})
-    safety_level = evaluation.get("safety", "green")
+    safety_contract = apply_v4_safety_contract_floor(
+        existing_safety_level=evaluation.get("safety", "green"),
+        existing_reason_codes=evaluation.get("safety_reason_codes", []),
+        primary_nutrition_phenotype=nutrition_phenotype,
+        complexity_overlay=v4_phenotype_contract.get("complexity_overlay"),
+    )
+    safety_level = safety_contract["safety_level"]
     trace = energy_trace(payload, nutrition_phenotype, q56, safety_level, active_configs=active_configs)
     v4_energy_state = derive_energy_state(
         phenotype_contract=v4_phenotype_contract,
@@ -2165,6 +2172,9 @@ def build_v2_plan(
         "energy_state": v4_energy_state,
         "surgery_window": _value(payload, "q6_surgeryWindow"),
         "safety_level": safety_level,
+        "safety_reason_codes": safety_contract["safety_reason_codes"],
+        "safety_floor_applied": safety_contract["safety_floor_applied"],
+        "safety_floor_sources": safety_contract["safety_floor_sources"],
         "pulmonary_rule_version": "V1.0",
         "pulmonary_dose_level": pulmonary_dose_level,
         "pulmonary_selection_trace": pulmonary_trace,
@@ -2200,7 +2210,7 @@ def build_v2_plan(
         "exercise_weekly_prescription": v3_combo,
         "weekly_review": {"confidence": "LOW", "decision": "DATA_INSUFFICIENT", "reason": "尚未积累7天执行记录"},
         "next_week_adjustment": {"status": "待周复评", "changes": [], "safety_review_required": True},
-        "safety_rules": {"safety_level": safety_level, "precautions": "不自动改药、不跳餐、不以目标体重倒算热量。", "stop_conditions": "胸痛/胸闷、明显气促、头晕、咯血、意识异常等立即停止并转医护。", "blocked_modules": ["exercise", "pulmonary_prehab", "enhanced_fat_loss"] if safety_level == "red" or goal_conflict else [], "goal_conflict": goal_conflict, "publication_blocked": publication_blocked},
+        "safety_rules": {"safety_level": safety_level, "reason_codes": safety_contract["safety_reason_codes"], "safety_floor_applied": safety_contract["safety_floor_applied"], "safety_floor_sources": safety_contract["safety_floor_sources"], "precautions": "不自动改药、不跳餐、不以目标体重倒算热量。", "stop_conditions": "胸痛/胸闷、明显气促、头晕、咯血、意识异常等立即停止并转医护。", "blocked_modules": ["exercise", "pulmonary_prehab", "enhanced_fat_loss"] if safety_level == "red" or goal_conflict else [], "goal_conflict": goal_conflict, "publication_blocked": publication_blocked},
         "clinician_notes": {"review_required": True, "note": "规则生成候选方案，须医护审核后发布。"},
         "missing_data": evaluation.get("missing_data", []),
         # Candidate values are usable for the clinician-only draft. Keep the

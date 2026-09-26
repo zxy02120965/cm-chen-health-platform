@@ -51,6 +51,8 @@ def test_runtime_alignment_reports_known_gaps_explicitly():
             assert gap["resolution_status"] == "PENDING_MDT_SAFETY_ALIGNMENT"
         else:
             assert gap["present"] is False
+            if fixture["fixture_id"] in {"SYN-C01", "SYN-D01", "SYN-F01"}:
+                assert gap["resolution_status"] == "SAFETY_CONTRACT_ALIGNED"
         if expected["provisional_energy_target_kcal"] is not None:
             assert abs(float(actual["provisional_energy_target_kcal"]) - float(expected["provisional_energy_target_kcal"])) <= 5.0
         assert actual["publication_blocked"] is True
@@ -63,7 +65,8 @@ def test_f01_runtime_preserves_underlying_b_and_f_overlay():
     assert actual["complexity_overlay"] == "F"
     assert actual["display_phenotype"] == "F"
     assert fixture["expected_contract"]["primary_nutrition_phenotype"] == "B"
-    assert fixture["known_contract_gap"]["fields"] == ["safety_level"]
+    assert fixture["known_contract_gap"]["present"] is False
+    assert fixture["known_contract_gap"]["resolution_status"] == "SAFETY_CONTRACT_ALIGNED"
 
 
 def test_canonical_provisional_energy_uses_p3_and_q35_candidate_pal():

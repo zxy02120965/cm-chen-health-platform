@@ -6,6 +6,7 @@ from .missing_data_policy import structured_missing_context
 from .plan_contract import PLAN_CONTENT_CONTRACT_VERSION
 from .v2_engine import build_v2_plan, calculate_phenotype, parse_q56, normalize_selection
 from .v4_contract import derive_v4_phenotype
+from .v4_safety_contract import apply_v4_safety_contract_floor
 
 
 def _filled(value: Any) -> bool:
@@ -145,6 +146,18 @@ def assess_payload(payload: dict[str, Any]) -> dict[str, Any]:
     # calculation entry point; no endpoint computes A-F independently.
     phenotype_code, phenotype_modifiers = calculate_phenotype(payload)
     v4_phenotype_contract = derive_v4_phenotype(payload)
+    safety_contract = apply_v4_safety_contract_floor(
+        existing_safety_level=safety,
+        existing_reason_codes=[],
+        primary_nutrition_phenotype=v4_phenotype_contract["primary_nutrition_phenotype"],
+        complexity_overlay=v4_phenotype_contract["complexity_overlay"],
+    )
+    safety = safety_contract["safety_level"]
+    safety_text = {
+        "red": "红色｜暂停相关计划并立即转医护",
+        "yellow": "黄色｜异常关注，及时转医护",
+        "green": "绿色｜正常居家管理",
+    }[safety]
     return {
         "tier": tier,
         "tier_label": tier_label,
@@ -152,6 +165,9 @@ def assess_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "missing": missing + missing_context,
         "safety": safety,
         "safety_label": safety_text,
+        "safety_reason_codes": safety_contract["safety_reason_codes"],
+        "safety_floor_applied": safety_contract["safety_floor_applied"],
+        "safety_floor_sources": safety_contract["safety_floor_sources"],
         "phenotype": {"A": "A｜超重/高体脂型", "B": "B｜肥胖/代谢风险型", "C": "C｜高体脂伴肌少风险型", "D": "D｜消瘦/营养风险型", "E": "E｜非意愿下降/摄入不足型", "F": "F｜复杂共病/执行障碍型"}.get(phenotype_code, phenotype),
         "phenotype_code": phenotype_code,
         "phenotype_modifiers": phenotype_modifiers,
