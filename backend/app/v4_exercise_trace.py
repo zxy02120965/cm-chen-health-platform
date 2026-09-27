@@ -161,6 +161,8 @@ def build_canonical_exercise_week(
     allowed_action_ids: set[str] | list[str] | None = None,
     e_formal_aerobic_eligibility: dict[str, Any] | None = None,
     functional_activity_materialization: dict[str, Any] | None = None,
+    complexity_overlay_trace: dict[str, Any] | None = None,
+    f_exercise_overlay: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     """Adapt the final legacy schedule and return (canonical, projection, flat)."""
     combo = combo or {}
@@ -275,6 +277,14 @@ def build_canonical_exercise_week(
         "safety_level": safety_level,
         "exercise_dose_status": dose_status,
     }
+    context["complexity_overlay_trace"] = deepcopy(complexity_overlay_trace or {
+        "overlay": "F" if contract.get("complexity_overlay") == "F" else "none",
+        "major_complexity_trigger_present": contract.get("complexity_overlay") == "F",
+        "material_execution_burden_present": contract.get("complexity_overlay") == "F",
+        "trigger_reasons": [],
+        "education_only": False,
+        "source_facts": [],
+    })
     if context["primary_nutrition_phenotype"] == "E":
         eligibility = deepcopy(e_formal_aerobic_eligibility) if e_formal_aerobic_eligibility else {
             "phenotype": "E",
@@ -346,12 +356,24 @@ def build_canonical_exercise_week(
         if eligibility_status == "NOT_ASSESSED":
             manual_review.append("V4_E_ELIGIBILITY_PENDING_PHASE_3B_2")
     if context["complexity_overlay"] == "F":
-        context["complexity_reduction"] = {
-            "applied": True,
-            "reasons": deepcopy(contract.get("reasons") or []),
-            "what_was_reduced": None,
-        }
-        manual_review.append("F overlay具体减少项目未由Exercise模块重新推断")
+        overlay = deepcopy(f_exercise_overlay or {})
+        context["f_exercise_overlay"] = overlay
+        context["complexity_reduction"] = deepcopy(
+            overlay.get("complexity_reduction")
+            or {
+                "applied": True,
+                "reasons": deepcopy(contract.get("reasons") or []),
+                "what_was_reduced": None,
+            }
+        )
+        context["progression_policy"] = deepcopy(overlay.get("progression_policy") or {
+            "automatic_progression": False,
+            "status": "HOLD_FOR_REVIEW",
+            "reasons": ["COMPLEXITY_OVERLAY_F"],
+        })
+        context["resistance_coverage"] = deepcopy(overlay.get("resistance_coverage") or {})
+    elif f_exercise_overlay is not None:
+        context["f_exercise_overlay"] = deepcopy(f_exercise_overlay)
     canonical = {
         "schema_version": EXERCISE_TRACE_SCHEMA_VERSION,
         "trace_materialization_status": status,

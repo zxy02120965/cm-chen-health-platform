@@ -1850,9 +1850,20 @@ def build_v2_plan(
         pulmonary_cfg=pulmonary_cfg,
         clinician_inputs=pulmonary_clinician_inputs,
     )
+    # Exercise direction follows the canonical A-E nutrition phenotype.  The
+    # display phenotype F is an execution-complexity overlay and must not
+    # select the legacy reduced F template.
     v3_flat_exercise, v3_weekly_schedule, v3_combo = build_v3_weekly_exercise(
-        exercise_catalog, phenotype, restrictions=restrictions, safety_level=safety_level,
+        exercise_catalog, nutrition_phenotype, restrictions=restrictions, safety_level=safety_level,
         pulmonary=selected_pulmonary,
+    )
+    from .v4_f_exercise_overlay import apply_f_exercise_overlay, derive_complexity_overlay_trace
+    complexity_overlay_trace = derive_complexity_overlay_trace(payload, v4_phenotype_contract)
+    v3_weekly_schedule, f_exercise_overlay = apply_f_exercise_overlay(
+        v3_weekly_schedule,
+        contract=v4_phenotype_contract,
+        complexity_trace=complexity_overlay_trace,
+        action_catalog=exercise_catalog,
     )
     e_formal_aerobic_eligibility = None
     functional_activity_materialization = None
@@ -1933,6 +1944,8 @@ def build_v2_plan(
         allowed_action_ids=set(v3_combo.get("allowed_action_ids") or []),
         e_formal_aerobic_eligibility=e_formal_aerobic_eligibility,
         functional_activity_materialization=functional_activity_materialization,
+        complexity_overlay_trace=complexity_overlay_trace,
+        f_exercise_overlay=f_exercise_overlay,
     )
     v3_weekly_schedule = v4_weekly_schedule
     v3_flat_exercise = v4_flat_exercise
