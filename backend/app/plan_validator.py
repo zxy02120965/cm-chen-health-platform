@@ -26,6 +26,28 @@ def validate_plan(plan: dict[str, Any], *, mode: str = "production", allowed_exe
         if item.get("pulmonary_id") == "P06" and not (item.get("device_available") and item.get("clinician_ordered")):
             errors.append("P06缺少设备和医护指导/处方")
     checks["pulmonary.gates"] = "PASS" if not any("P06" in e for e in errors) else "FAIL"
+    pulmonary_trace = plan.get("pulmonary_rehab_trace")
+    if pulmonary_trace is not None:
+        trace_validation = pulmonary_trace.get("trace_validation") or {}
+        canonical_ids = {
+            (action.get("pulmonary_id"), action.get("pulmonary_mode"))
+            for day in pulmonary_trace.get("daily_schedule", [])
+            for action in day.get("actions", [])
+        }
+        projected_ids = {(item.get("pulmonary_id"), item.get("pulmonary_mode")) for item in pulmonary}
+        canonical_checks = {
+            "schema": pulmonary_trace.get("schema_version") == "PULMONARY_TRACE_V4_2",
+            "full_root": pulmonary_trace.get("trace_materialization_status") == "FULL" and pulmonary_trace.get("pulmonary_trace_full") is True,
+            "trace_validation": trace_validation.get("status") == "PASS",
+            "minimum_sufficient_set": bool(pulmonary_trace.get("minimum_sufficient_set")),
+            "provenance": bool((pulmonary_trace.get("source_provenance") or {}).get("source_version")) and bool((pulmonary_trace.get("source_provenance") or {}).get("sha256")),
+            "patient_projection": projected_ids.issubset(canonical_ids),
+        }
+        checks["pulmonary.canonical_trace"] = "PASS" if all(canonical_checks.values()) else "FAIL"
+        if not all(canonical_checks.values()):
+            errors.append("肺康复canonical trace或患者投影未通过")
+    else:
+        checks["pulmonary.canonical_trace"] = "WARN"
     # Rotation is independent from nutrition closure. Repetition is only
     # tolerated when the catalog explicitly reports that safe alternatives are
     # limited; otherwise it is a validation problem for a seven-day plan.

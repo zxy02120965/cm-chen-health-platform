@@ -1717,28 +1717,38 @@ def _select_pulmonary_plan(
     airway_signals = {"咳痰", "痰液增多", "排痰困难", "分泌物管理需求"}
     p05_airway = bool(symptoms & airway_signals)
     if "P05" in catalog:
-        education = _pulmonary_mode_item(catalog["P05"], "EDUCATION")
-        education["candidate_dose"] = "本周至少1次术前有效咳嗽技能学习/练习"
-        education["dose_range"] = education["candidate_dose"]
-        education["frequency_range"] = "本周1次，之后按需复习"
-        education["requires_daily_task"] = False
-        selected.append(education)
         if p05_airway:
             airway = _pulmonary_mode_item(catalog["P05"], "AIRWAY_CLEARANCE")
             airway["candidate_dose"] = "2次咳嗽/循环×2–5循环"
             airway["dose_range"] = airway["candidate_dose"]
             airway["frequency_range"] = "按需"
             airway["requires_daily_task"] = True
+            airway["skill_learning"] = False
+            airway["clinical_need_for_clearance"] = True
+            airway["reason"] = "sputum_or_clearance_need"
+            airway["dose_source_available"] = bool(catalog["P05"].get("candidate_dose") or catalog["P05"].get("dose_range"))
             selected.append(airway)
+        else:
+            education = _pulmonary_mode_item(catalog["P05"], "EDUCATION")
+            education["candidate_dose"] = "本周至少1次术前有效咳嗽技能学习/练习"
+            education["dose_range"] = education["candidate_dose"]
+            education["frequency_range"] = "本周1次，之后按需复习"
+            education["requires_daily_task"] = False
+            education["skill_learning"] = True
+            education["clinical_need_for_clearance"] = False
+            education["reason"] = "preoperative_skill_rehearsal"
+            education["dose_source_available"] = bool(catalog["P05"].get("candidate_dose") or catalog["P05"].get("dose_range"))
+            selected.append(education)
 
     p06_device = clinician_inputs.get("p06_device_available") is True
     p06_ordered = clinician_inputs.get("p06_clinician_ordered") is True
-    p06_selected = p06_device and p06_ordered and "P06" in catalog
+    p06_selected = p05_airway and p06_device and p06_ordered and "P06" in catalog
     if p06_selected:
         p06 = deepcopy(catalog["P06"])
         p06["device_available"] = True
         p06["clinician_ordered"] = True
         p06["dose_level"] = "STANDARD"
+        p06["dose_status"] = "UNAVAILABLE"
         selected.append(p06)
 
     trace = {
@@ -1748,7 +1758,21 @@ def _select_pulmonary_plan(
         "p05_education": "P05" in catalog,
         "p05_airway_clearance": p05_airway,
         "p06": p06_selected,
-        "p06_gate": {"device_available": p06_device, "clinician_ordered": p06_ordered},
+        "p05_gate": {
+            "selected": "P05" in catalog,
+            "mode": "AIRWAY_CLEARANCE" if p05_airway else "SKILL_LEARNING" if "P05" in catalog else "NOT_SELECTED",
+            "skill_learning": not p05_airway and "P05" in catalog,
+            "clinical_need_for_clearance": p05_airway,
+            "reason": "sputum_or_clearance_need" if p05_airway else "preoperative_skill_rehearsal" if "P05" in catalog else None,
+            "sputum_or_clearance_need": p05_airway,
+            "dose_source_available": bool("P05" in catalog and (catalog["P05"].get("candidate_dose") or catalog["P05"].get("dose_range"))),
+        },
+        "p06_gate": {
+            "sputum_or_clearance_need": p05_airway,
+            "device_available": p06_device,
+            "clinician_ordered": p06_ordered,
+            "eligible": p06_selected,
+        },
     }
     return selected, dose_level, trace
 
@@ -1929,6 +1953,21 @@ def build_v2_plan(
                 "selected_action_ids": [],
                 "reason_codes": ["E_FORMAL_AEROBIC_NOT_DEFERRED"],
             }
+    # Phase 4B-1: materialize pulmonary output only after the legacy selector
+    # and final weekly schedule are complete.  The canonical pulmonary root is
+    # the source for both compatibility projections below.
+    from .v4_pulmonary_trace import build_pulmonary_trace, project_pulmonary_plan, project_weekly_schedule
+    pulmonary_rehab_trace = build_pulmonary_trace(
+        payload,
+        selected_pulmonary,
+        v3_weekly_schedule,
+        safety_level=safety_level,
+        pulmonary_dose_status="UNAVAILABLE" if safety_level == "red" else "PROVISIONAL",
+        selection_trace=pulmonary_trace,
+        complexity_overlay=v4_phenotype_contract.get("complexity_overlay"),
+    )
+    v3_weekly_schedule = project_weekly_schedule(pulmonary_rehab_trace, v3_weekly_schedule)
+    selected_pulmonary = project_pulmonary_plan(pulmonary_rehab_trace)
     # Phase 3B-1: adapt the final legacy V3 candidate into one canonical,
     # auditable exercise week.  Selection, dose intent and clinical rules
     # remain owned by build_v3_weekly_exercise; this adapter only normalizes
@@ -2257,6 +2296,15 @@ def build_v2_plan(
         "pulmonary_rule_version": "V1.0",
         "pulmonary_dose_level": pulmonary_dose_level,
         "pulmonary_selection_trace": pulmonary_trace,
+        "pulmonary_rehab_trace": pulmonary_rehab_trace,
+        "artifact_return": {
+            "pulmonary_trace": {
+                "present": True,
+                "materialization": pulmonary_rehab_trace.get("trace_materialization_status"),
+                "schema_version": pulmonary_rehab_trace.get("schema_version"),
+                "days_materialized": len(pulmonary_rehab_trace.get("daily_schedule") or []),
+            }
+        },
         "formal_aerobic_eligibility": deepcopy(e_formal_aerobic_eligibility),
         "e_formal_aerobic_validation": deepcopy(
             canonical_exercise_week.get("context_snapshot", {}).get("e_formal_aerobic_validation")

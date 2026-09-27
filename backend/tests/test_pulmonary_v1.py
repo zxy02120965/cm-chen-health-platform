@@ -94,7 +94,10 @@ def test_p06_requires_both_device_and_clinician_order():
         {"p06_device_available": False, "p06_clinician_ordered": True},
     ):
         assert ("P06", None) not in _pulmonary(_plan(pulmonary_inputs=inputs))
-    selected = _pulmonary(_plan(pulmonary_inputs={"p06_device_available": True, "p06_clinician_ordered": True}))
+    # The V4 pulmonary gate also requires a real sputum/clearance need.
+    not_needed = _pulmonary(_plan(symptoms=["无"], pulmonary_inputs={"p06_device_available": True, "p06_clinician_ordered": True}))
+    assert ("P06", None) not in not_needed
+    selected = _pulmonary(_plan(symptoms=["咳痰"], pulmonary_inputs={"p06_device_available": True, "p06_clinician_ordered": True}))
     assert ("P06", None) in selected
     assert selected[("P06", None)]["device_available"] is True
     assert selected[("P06", None)]["clinician_ordered"] is True
