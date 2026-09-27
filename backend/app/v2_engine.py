@@ -2370,6 +2370,23 @@ def build_v2_plan(
         plan["validation_result"] = {**plan["validation_result"], "contract_validator": validate_plan(plan, mode=mode, allowed_exercise_ids=allowed_ex, allowed_pulmonary_ids=allowed_pr)}
     except Exception:
         pass
+    # Build the aggregate manifest only after all three canonical roots and
+    # their validators have been materialized.  Compatibility summaries remain
+    # projections of this single root-derived state.
+    from .artifact_manifest import build_artifact_manifest
+    artifact_manifest = build_artifact_manifest(
+        plan.get("diet_plan_trace"),
+        plan.get("exercise_plan_trace"),
+        plan.get("pulmonary_rehab_trace"),
+    )
+    plan["artifact_manifest"] = artifact_manifest
+    pulmonary_entry = artifact_manifest["pulmonary_trace"]
+    plan["artifact_return"] = {
+        "pulmonary_trace": {
+            key: pulmonary_entry[key]
+            for key in ("present", "materialization", "schema_version", "days_materialized")
+        }
+    }
     return plan
 
 
