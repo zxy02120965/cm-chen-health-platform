@@ -601,11 +601,16 @@ def review_plan(patient_id: str, body: ReviewIn) -> dict[str, Any]:
             raise HTTPException(422, {"message": "安全校验阻止审核通过", "errors": validation.get("publish_block_reasons", [])})
         draft["review_status"] = "APPROVED"
         draft["review_eligible"] = True
-        # Patient-level review is independent from MDT governance status. The
-        # legacy APPROVED_PENDING_MDT_ACTIVATION value remains readable for
-        # historical rows, but new approvals enter READY_TO_PUBLISH whenever
-        # content and safety checks pass.
-        status_map["approve"] = "READY_TO_PUBLISH"
+        # Patient-level review is independent from clinician content review,
+        # but a blocked draft must not enter READY_TO_PUBLISH.  Keep the
+        # approved-but-governance-blocked state explicit until the blocking
+        # condition is resolved; historical APPROVED_PENDING_MDT_ACTIVATION
+        # rows remain readable.
+        publication_blocked = bool(
+            draft.get("publication_blocked")
+            or validation.get("publish_validation") == "BLOCKED"
+        )
+        status_map["approve"] = "APPROVED_PENDING_PUBLISH" if publication_blocked else "READY_TO_PUBLISH"
         validation["review_validation"] = "PASS"
         draft["validation_result"] = validation
         plan["draft"] = draft
