@@ -2030,6 +2030,21 @@ def build_v2_plan(
     food_cfg = (active_configs or {}).get("V2-FOOD-COMPONENTS") or {}
     food_confirmed = bool(isinstance(food_cfg, dict) and food_cfg.get("status") in {"ACTIVE", "CANDIDATE"})
     catalog_foods = list(food_cfg.get("items") or []) if isinstance(food_cfg, dict) and food_cfg.get("items") else []
+    food_complexity_overlay_trace: dict[str, Any] = {
+        "overlay": "none",
+        "applied": False,
+        "source_reasons": [],
+        "before": {"weekly_unique_menu_patterns": 0, "meal_component_counts": [], "breakfast_component_counts": []},
+        "strategies": {},
+        "after": {"weekly_unique_menu_patterns": 0, "meal_component_counts": [], "breakfast_component_counts": []},
+        "preserved": {
+            "underlying_primary_phenotype": nutrition_phenotype,
+            "energy_direction": True,
+            "executable_amounts_legal": True,
+            "nutrition_closure": True,
+        },
+        "permanent_exclusion": False,
+    }
     nutrition_generation_status = "complete"
     nutrition_generation_missing_reasons: list[str] = []
     if catalog_foods:
@@ -2075,6 +2090,33 @@ def build_v2_plan(
         rotation_limited = True
     if rotation_limited and not nutrition_generation_missing_reasons:
         nutrition_generation_missing_reasons.append("安全候选不足，无法满足7天轮换要求")
+
+    # Phase 5B-5: consume the already-derived F complexity overlay without
+    # changing the underlying B energy direction or inventing food amounts.
+    # Every candidate is checked with the existing nutrition closure before it
+    # can replace the base component selection.
+    if nutrition_generation_status == "complete" and rotating_meals:
+        from .v4_food_overlay import apply_f_food_complexity_overlay
+
+        def _overlay_closure_passes(day_number: int, candidate_day: dict[str, Any]) -> bool:
+            candidate_closure, _ = _close_day_meals(
+                day_number,
+                candidate_day,
+                daily_energy=generation_energy_target,
+                protein_target=protein_target,
+                carb_range=carb_range,
+                fat_range=fat_range,
+                meal_distribution=meal_distribution,
+            )
+            return candidate_closure.get("closure_status") == "PASS"
+
+        rotating_meals, food_complexity_overlay_trace = apply_f_food_complexity_overlay(
+            rotating_meals,
+            primary_nutrition_phenotype=nutrition_phenotype,
+            complexity_overlay=v4_phenotype_contract.get("complexity_overlay"),
+            source_reasons=(complexity_overlay_trace or {}).get("trigger_reasons"),
+            closure_validator=_overlay_closure_passes,
+        )
     meals_complete = all(all(meal.get(key) not in (None, "") for key in ("ingredient_name", "ingredient_amount", "unit", "raw_or_cooked_basis")) for meal in meals.values())
     all_active = bool(trace.get("mdt_confirmed") and food_confirmed and meals_complete and isinstance(exercise_cfg, dict) and exercise_cfg.get("status") == "ACTIVE" and isinstance(pulmonary_cfg, dict) and pulmonary_cfg.get("status") == "ACTIVE")
     # P2: independently size every day from the selected components.  The
@@ -2164,6 +2206,11 @@ def build_v2_plan(
         daily_closures,
         replacement_optimization,
     )
+    from .v4_food_overlay import summarize_food_week
+    # The final snapshot is taken after the existing closure/replacement pass
+    # so the trace describes the exact component set that will be materialized.
+    food_complexity_overlay_trace["after"] = summarize_food_week(rotating_meals)
+    nutrition_trace["food_complexity_overlay"] = deepcopy(food_complexity_overlay_trace)
     # Phase 2B: materialize only after the final replacement/closure decision.
     # The returned compatibility meals are projections of the same canonical
     # object; no later nutrition or portion optimizer runs after this point.
@@ -2181,6 +2228,7 @@ def build_v2_plan(
                 "complexity_overlay": v4_phenotype_contract.get("complexity_overlay"),
                 "energy_state": deepcopy(v4_energy_state),
                 "food_source": f"ZXY_WEEK1_V4_FREEZE/{active_food_version}",
+                "food_complexity_overlay": deepcopy(food_complexity_overlay_trace),
             },
         )
         rotating_meals = projected_rotating_meals
@@ -2241,6 +2289,13 @@ def build_v2_plan(
     nutrition_complete = nutrition_generation_status == "complete" and all(all(meal.get(key) not in (None, "") for key in ("ingredient_name", "ingredient_amount", "unit", "raw_or_cooked_basis", "cooking_method")) for meal in meals.values()) and all(v is not None for m in meals.values() for v in (m.get("estimated_energy"), m.get("estimated_protein"), m.get("estimated_carbohydrate"), m.get("estimated_fat")))
     target_energy = generation_energy_target
     closure_ok = nutrition_generation_status == "complete" and bool(daily_closures) and all(item.get("closure_status") == "PASS" for item in daily_closures) if target_energy is not None else nutrition_generation_status == "complete"
+    food_complexity_overlay_trace["preserved"]["nutrition_closure"] = bool(closure_ok)
+    food_complexity_overlay_trace["preserved"]["executable_amounts_legal"] = bool(
+        canonical_week_diet.get("trace_validation", {}).get("all_patient_visible_amounts_are_executable")
+    )
+    food_complexity_overlay_trace["after"] = summarize_food_week(rotating_meals)
+    nutrition_trace["food_complexity_overlay"] = deepcopy(food_complexity_overlay_trace)
+    canonical_week_diet.setdefault("generation_context", {})["food_complexity_overlay"] = deepcopy(food_complexity_overlay_trace)
     # Separate content integrity from governance/publish eligibility. Candidate
     # values can produce a complete clinician draft while remaining blocked
     # until MDT promotion; publication status must not masquerade as a content
@@ -2331,7 +2386,7 @@ def build_v2_plan(
         "diet_plan": {"daily_energy_target": trace["daily_energy_target_kcal"], "protein_target": protein_target,
                       "carbohydrate_target": ({"min_pct": carb_range[0], "max_pct": carb_range[1], "basis": "energy_percent", "status": "CANDIDATE"} if isinstance(carb_range, list) and len(carb_range) == 2 else None),
                       "fat_target": ({"min_pct": fat_range[0], "max_pct": fat_range[1], "basis": "energy_percent", "status": "CANDIDATE"} if isinstance(fat_range, list) and len(fat_range) == 2 else None),
-                      "meal_distribution": meal_distribution, "meal_frequency": "3+1", **meals, "components": [*meals.values()], "daily_energy_total": meal_totals["energy_kcal"], "daily_protein_total": meal_totals["protein_g"], "daily_carbohydrate_total": meal_totals["carbohydrate_g"], "daily_fat_total": meal_totals["fat_g"], "nutrition_closure": daily_closures, "nutrition_review_required": nutrition_review_required, "nutrition_review": nutrition_review, "weekly_nutrition_summary": weekly_nutrition_summary, "nutrition_plan_validation": validation["nutrition_plan_validation"], "nutrition_generation_status": nutrition_generation_status, "nutrition_generation_missing_reasons": nutrition_generation_missing_reasons, "rotation_limited": rotation_limited, "portion_adjustment_limited": portion_adjustment_limited, "portion_adjustment_reason": list(dict.fromkeys(portion_adjustment_reasons)), "mdt_confirmed": food_confirmed},
+                      "meal_distribution": meal_distribution, "meal_frequency": "3+1", "food_complexity_overlay": deepcopy(food_complexity_overlay_trace), **meals, "components": [*meals.values()], "daily_energy_total": meal_totals["energy_kcal"], "daily_protein_total": meal_totals["protein_g"], "daily_carbohydrate_total": meal_totals["carbohydrate_g"], "daily_fat_total": meal_totals["fat_g"], "nutrition_closure": daily_closures, "nutrition_review_required": nutrition_review_required, "nutrition_review": nutrition_review, "weekly_nutrition_summary": weekly_nutrition_summary, "nutrition_plan_validation": validation["nutrition_plan_validation"], "nutrition_generation_status": nutrition_generation_status, "nutrition_generation_missing_reasons": nutrition_generation_missing_reasons, "rotation_limited": rotation_limited, "portion_adjustment_limited": portion_adjustment_limited, "portion_adjustment_reason": list(dict.fromkeys(portion_adjustment_reasons)), "mdt_confirmed": food_confirmed},
         "exercise_plan": selected_exercise,
         "pulmonary_prehab_plan": selected_pulmonary,
         "monitoring_plan": {"items": ["体重", "体脂率", "腰围", "饮食执行", "运动执行", "肺预康复执行", "疲劳/气促/疼痛"], "frequency": "每日记录，周末复评", "thresholds": None, "instructions": "按已发布任务记录实际完成情况；异常及时联系医护。"},
