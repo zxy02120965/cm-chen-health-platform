@@ -1855,6 +1855,7 @@ def build_v2_plan(
         pulmonary=selected_pulmonary,
     )
     e_formal_aerobic_eligibility = None
+    functional_activity_materialization = None
     if nutrition_phenotype == "E":
         from .v4_e_exercise_eligibility import (
             apply_e_eligibility_to_schedule,
@@ -1877,6 +1878,46 @@ def build_v2_plan(
             v3_combo["legacy_aerobic_days_target"] = v3_combo.get("aerobic_days_target")
             v3_combo["aerobic_days_target"] = e_schedule_adjustment["formal_aerobic_days_target"]
             v3_combo["functional_activity_days_target"] = e_schedule_adjustment.get("functional_activity_days_target")
+        # E-deferred functional activity is selected from the independent,
+        # manifest-derived FINAL asset.  It is intentionally not part of the
+        # legacy V3 catalogue or category-to-role mapping.
+        if e_formal_aerobic_eligibility.get("status") == "DEFERRED_FOR_NUTRITION_RECOVERY":
+            from .v4_functional_activity_data import select_e_deferred_functional_activity
+
+            selected_functional, functional_activity_materialization = select_e_deferred_functional_activity(
+                payload=payload,
+                safety_level=safety_level,
+                eligibility=e_formal_aerobic_eligibility,
+            )
+            if selected_functional:
+                selected_runtime_actions = [item.to_runtime_action() for item in selected_functional]
+                for day in v3_weekly_schedule:
+                    day["functional_activity"] = deepcopy(selected_runtime_actions)
+                    day["functional_activity_session_role"] = "FUNCTIONAL_ACTIVITY"
+                    day["functional_activity_purpose"] = selected_functional[0].purpose
+                    day["exercise"] = [
+                        *deepcopy(day.get("resistance") or []),
+                        *deepcopy(day.get("flexibility") or []),
+                        *deepcopy(day.get("functional_activity") or []),
+                        *deepcopy(day.get("recovery") or []),
+                        *deepcopy(day.get("warmup") or []),
+                    ]
+                    day["is_training"] = bool(day["exercise"])
+                    day["training"] = day["is_training"]
+                    day["rest_day"] = not day["is_training"]
+                    if not day.get("resistance") and not day.get("flexibility"):
+                        day["day_type"] = "恢复日/日常活动"
+                v3_combo = deepcopy(v3_combo)
+                v3_combo["allowed_action_ids"] = sorted(
+                    set(v3_combo.get("allowed_action_ids") or [])
+                    | {item.action_id for item in selected_functional}
+                )
+        elif nutrition_phenotype == "E":
+            functional_activity_materialization = {
+                "status": "NOT_ELIGIBLE",
+                "selected_action_ids": [],
+                "reason_codes": ["E_FORMAL_AEROBIC_NOT_DEFERRED"],
+            }
     # Phase 3B-1: adapt the final legacy V3 candidate into one canonical,
     # auditable exercise week.  Selection, dose intent and clinical rules
     # remain owned by build_v3_weekly_exercise; this adapter only normalizes
@@ -1891,6 +1932,7 @@ def build_v2_plan(
         safety_level=safety_level,
         allowed_action_ids=set(v3_combo.get("allowed_action_ids") or []),
         e_formal_aerobic_eligibility=e_formal_aerobic_eligibility,
+        functional_activity_materialization=functional_activity_materialization,
     )
     v3_weekly_schedule = v4_weekly_schedule
     v3_flat_exercise = v4_flat_exercise

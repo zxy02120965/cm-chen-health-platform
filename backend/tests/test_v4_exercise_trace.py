@@ -64,7 +64,7 @@ def test_frozen_golden_cases_get_structural_trace_and_e_pending_marker():
         trace = plan["exercise_plan_trace"]
         assert trace["trace_materialization_status"] == "FULL"
         assert len(trace["daily_schedule"]) == 7
-        assert all(session["session_role"] in {"FORMAL_AEROBIC", "RESISTANCE", "FLEXIBILITY"} for day in trace["daily_schedule"] for session in day["sessions"])
+        assert all(session["session_role"] in {"FORMAL_AEROBIC", "FUNCTIONAL_ACTIVITY", "RESISTANCE", "FLEXIBILITY"} for day in trace["daily_schedule"] for session in day["sessions"])
         if case_id == "SYN-E01":
             assert trace["context_snapshot"]["formal_aerobic_eligibility"]["status"] == "DEFERRED_FOR_NUTRITION_RECOVERY"
             validation = trace["context_snapshot"]["e_formal_aerobic_validation"]
@@ -73,8 +73,10 @@ def test_frozen_golden_cases_get_structural_trace_and_e_pending_marker():
             assert "MARKEDLY_REDUCED_INTAKE" in validation["reason_codes"]
             assert validation["formal_aerobic_days_target"] == 0
             assert validation["zero_day_reason_present"] is True
-            assert validation["functional_activity_preserved_when_safe"] is None
-            assert trace["context_snapshot"]["functional_activity_materialization"]["status"] == "UNAVAILABLE"
+            assert validation["functional_activity_preserved_when_safe"] is True
+            materialization = trace["context_snapshot"]["functional_activity_materialization"]
+            assert materialization["status"] == "MATERIALIZED"
+            assert materialization["selected_action_ids"] == ["FA-INDOOR"]
             assert trace["weekly_schedule_declared"]["functional_activity_days_target"] == ">0_or_as_tolerated"
             assert isinstance(validation["formal_aerobic_days_target"], (int, float, type(None)))
             assert not isinstance(validation["formal_aerobic_days_target"], (list, tuple, range))

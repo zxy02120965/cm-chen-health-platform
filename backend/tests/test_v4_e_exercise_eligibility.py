@@ -68,16 +68,16 @@ def test_deferred_schedule_removes_formal_aerobic_and_keeps_derived_consistency(
     assert validation["zero_day_reason_present"] is True
     assert validation["status"] == "PASS"
     assert trace["weekly_schedule_derived"]["formal_aerobic_days_actual"] == 0
-    assert trace["weekly_schedule_derived"]["functional_activity_days_actual"] == 0
+    assert trace["weekly_schedule_derived"]["functional_activity_days_actual"] > 0
     assert trace["weekly_schedule_declared"]["functional_activity_days_target"] == ">0_or_as_tolerated"
     assert trace["context_snapshot"]["formal_aerobic_eligibility"]["reasons"] == [
         "MARKEDLY_REDUCED_INTAKE", "NUTRITION_RECOVERY_PRIORITY"
     ]
-    assert trace["context_snapshot"]["e_formal_aerobic_validation"]["functional_activity_preserved_when_safe"] is None
-    assert trace["context_snapshot"]["functional_activity_materialization"] == {
-        "status": "UNAVAILABLE",
-        "reason_codes": ["FUNCTIONAL_ACTIVITY_SOURCE_UNAVAILABLE"],
-    }
+    assert trace["context_snapshot"]["e_formal_aerobic_validation"]["functional_activity_preserved_when_safe"] is True
+    materialization = trace["context_snapshot"]["functional_activity_materialization"]
+    assert materialization["status"] == "MATERIALIZED"
+    assert materialization["selected_action_ids"] == ["FA-INDOOR"]
+    assert materialization["source_version"] == "V1.0"
     assert trace["schedule_consistency_validation"]["status"] == "PASS"
     assert trace["trace_materialization_status"] == "FULL"
 

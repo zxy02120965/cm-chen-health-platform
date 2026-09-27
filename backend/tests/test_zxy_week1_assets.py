@@ -20,10 +20,10 @@ def _asset_path(entry: dict) -> Path:
     return ASSET_ROOT / Path(entry["relative_path"])
 
 
-def test_zxy_week1_manifest_lists_seven_existing_assets():
+def test_zxy_week1_manifest_lists_existing_assets():
     manifest = _manifest()
     assets = manifest["assets"]
-    assert len(assets) == 7
+    assert len(assets) == 8
     assert all(_asset_path(entry).is_file() for entry in assets)
 
 
@@ -37,6 +37,7 @@ def test_zxy_week1_manifest_versions_match_filenames_and_top_level_versions():
         "ZXY_回归测试与后端验收规范_V1.0.md": ("V1.0", "ENGINEERING_TEST_CONTRACT"),
         "ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.3.xlsx": ("V1.3", "MDT_INGREDIENT_MASTER"),
         "ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.3.xlsx": ("V1.3", "MDT_STANDARD_COMPONENT_EXECUTION"),
+        "ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_FINAL_V1.0.xlsx": ("V1.0", "FUNCTIONAL_ACTIVITY_ACTION_LIBRARY"),
     }
     for entry in manifest["assets"]:
         filename = Path(entry["relative_path"]).name
@@ -73,7 +74,7 @@ def test_zxy_week1_contracts_are_not_marked_as_clinical_knowledge():
 
 def test_zxy_week1_excel_assets_are_readable_xlsx_packages():
     xlsx_entries = [entry for entry in _manifest()["assets"] if entry["relative_path"].endswith(".xlsx")]
-    assert len(xlsx_entries) == 2
+    assert len(xlsx_entries) == 3
     for entry in xlsx_entries:
         with zipfile.ZipFile(_asset_path(entry), "r") as workbook:
             names = set(workbook.namelist())

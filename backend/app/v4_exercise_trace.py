@@ -160,6 +160,7 @@ def build_canonical_exercise_week(
     safety_level: str | None = None,
     allowed_action_ids: set[str] | list[str] | None = None,
     e_formal_aerobic_eligibility: dict[str, Any] | None = None,
+    functional_activity_materialization: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     """Adapt the final legacy schedule and return (canonical, projection, flat)."""
     combo = combo or {}
@@ -316,14 +317,30 @@ def build_canonical_exercise_week(
             "status": validation_status,
             "reason_codes": list(dict.fromkeys(reason_codes)),
         }
-        if derived["functional_activity_days_actual"] > 0:
+        if functional_activity_materialization is not None:
+            # The V4 runtime loader owns source availability and selection.  A
+            # trace adapter must preserve that result rather than infer source
+            # semantics from the number of scheduled sessions.
+            context["functional_activity_materialization"] = deepcopy(functional_activity_materialization)
+        elif derived["functional_activity_days_actual"] > 0:
             context["functional_activity_materialization"] = {
-                "status": "PASS",
+                "status": "MATERIALIZED",
+                "selected_action_ids": sorted(
+                    {
+                        action.get("action_id")
+                        for day in daily
+                        for session in day.get("sessions", [])
+                        if session.get("session_role") == "FUNCTIONAL_ACTIVITY"
+                        for action in session.get("actions", [])
+                        if action.get("action_id")
+                    }
+                ),
                 "reason_codes": [],
             }
         else:
             context["functional_activity_materialization"] = {
                 "status": "UNAVAILABLE",
+                "selected_action_ids": [],
                 "reason_codes": ["FUNCTIONAL_ACTIVITY_SOURCE_UNAVAILABLE"],
             }
         if eligibility_status == "NOT_ASSESSED":

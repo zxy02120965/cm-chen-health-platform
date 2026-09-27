@@ -4,7 +4,7 @@
 
 - Successor asset: `ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_FINAL_V1.0.xlsx`
 - Previous candidate asset: `ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_CANDIDATE_V1.0.xlsx`
-- Asset role: clinician-approved project successor asset; not yet connected to runtime
+- Asset role: clinician-approved project successor asset; connected to the V4 runtime for deferred E plans only
 - Approval evidence: `USER_CONFIRMED_CLINICIAN_REVIEW`
 - Reviewer name: not provided
 - Review date: not provided
@@ -35,13 +35,12 @@ The project-approved values are not relabeled as `SOURCE_SUPPORTED`, `EXTERNAL_G
 
 ## Runtime boundary
 
-This successor asset is not referenced by `load_exercises()`, `build_v3_weekly_exercise()`, `v4_exercise_trace`, or E eligibility. Until a later runtime integration phase, E01 remains:
+This successor asset remains independent from `load_exercises()` and `build_v3_weekly_exercise()`. The V4 runtime loader consumes it only for E plans whose formal-aerobic eligibility is `DEFERRED_FOR_NUTRITION_RECOVERY`; A/B/C/D/F plans continue to use their existing V3 action source. E01 now materializes metadata-matched `FUNCTIONAL_ACTIVITY` sessions from this asset.
 
 ```yaml
 functional_activity_materialization:
-  status: UNAVAILABLE
-  reason_codes:
-    - FUNCTIONAL_ACTIVITY_SOURCE_UNAVAILABLE
+  status: MATERIALIZED
+  source_asset: ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_FINAL_V1.0.xlsx
 ```
 
 No frozen clinical rule, V3.0 source document, existing action definition, patient schedule, database schema, or published snapshot was changed.

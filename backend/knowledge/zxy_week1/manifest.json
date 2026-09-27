@@ -56,6 +56,13 @@
       "version": "V1.3",
       "sha256": "05fc4cb4bb8b8c970383cb3d82ffa25fe1645182468d22934aaf1c521c63b983",
       "active": true
+    },
+    {
+      "relative_path": "data/ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_FINAL_V1.0.xlsx",
+      "role": "FUNCTIONAL_ACTIVITY_ACTION_LIBRARY",
+      "version": "V1.0",
+      "sha256": "7fe306b34c4be9ad7d1475c47a0e3225d54079b7a4856df9815f861c0d9f2d95",
+      "active": true
     }
   ]
 }

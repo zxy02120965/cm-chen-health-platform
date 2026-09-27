@@ -117,12 +117,28 @@ def test_final_asset_has_complete_action_specific_execution_parameters():
     assert by_id["FA-INDOOR"]["intensity"] == "舒适轻活动"
 
 
-def test_runtime_remains_unintegrated_and_e01_source_unavailable():
+def test_runtime_loads_final_asset_for_deferred_e_and_materializes_functional_activity():
     payload = json.loads(FIXTURE.read_text(encoding="utf-8"))["assessment_payload"]
     plan = build_v2_plan(payload, assess_payload(payload), active_configs=candidate_test_profile())
     context = plan["exercise_plan_trace"]["context_snapshot"]
-    assert context["functional_activity_materialization"] == {
-        "status": "UNAVAILABLE",
-        "reason_codes": ["FUNCTIONAL_ACTIVITY_SOURCE_UNAVAILABLE"],
-    }
+    materialization = context["functional_activity_materialization"]
+    assert materialization["status"] == "MATERIALIZED"
+    assert materialization["selected_action_ids"] == ["FA-INDOOR"]
+    assert materialization["source_version"] == "V1.0"
+    assert plan["exercise_plan_trace"]["weekly_schedule_derived"]["formal_aerobic_days_actual"] == 0
+    assert plan["exercise_plan_trace"]["weekly_schedule_derived"]["functional_activity_days_actual"] > 0
+    action = next(
+        action
+        for day in plan["exercise_plan_trace"]["daily_schedule"]
+        for session in day["sessions"]
+        if session["session_role"] == "FUNCTIONAL_ACTIVITY"
+        for action in session["actions"]
+    )
+    assert action["source_asset"].endswith("ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_FINAL_V1.0.xlsx")
+    assert action["source_version"] == "V4.2.1"
+    assert action["source_asset_version"] == "V1.0"
+    assert action["session_role"] == "FUNCTIONAL_ACTIVITY"
+    assert action["functional_activity_subtype"] == "DAILY_ACTIVITY_MAINTENANCE"
+    assert action["knowledge_status"] == "ACTIVE"
+    assert action["dose_status"] == "PROVISIONAL"
     assert context["formal_aerobic_eligibility"]["status"] == "DEFERRED_FOR_NUTRITION_RECOVERY"
