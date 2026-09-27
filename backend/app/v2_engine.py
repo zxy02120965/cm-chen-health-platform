@@ -2387,6 +2387,8 @@ def build_v2_plan(
             for key in ("present", "materialization", "schema_version", "days_materialized")
         }
     }
+    from .plan_view import build_plan_view
+    plan["plan_view"] = build_plan_view(plan)
     return plan
 
 

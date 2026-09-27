@@ -535,6 +535,8 @@ def create_plan(patient_id: str) -> dict[str, Any]:
     draft["safety_validation_errors"] = validate_draft(draft, context["active_mdt_configs"])
     previous_version = int((PLANS.get(patient_id) or {}).get("version", 0))
     plan = {"patient_id": patient_id, "version": previous_version + 1, "status": "RULE_GENERATED_PENDING_REVIEW", "evaluation": evaluation, "draft": draft, "created_at": datetime.now(timezone.utc).isoformat()}
+    from .plan_view import build_plan_view
+    draft["plan_view"] = build_plan_view({**draft, "patient_id": patient_id, "status": plan["status"]})
     PLANS[patient_id] = plan
     persisted = write_plan(patient_id, plan)
     if not persisted:
@@ -570,6 +572,8 @@ def save_plan_draft(patient_id: str, body: PlanUpdateIn) -> dict[str, Any]:
         raise HTTPException(422, {"message": "安全校验未通过，不能发布", "errors": errors})
     draft = {**body.draft, "safety_validation_errors": errors}
     updated = {**plan, "patient_id": patient_id, "draft": draft, "status": body.status or plan.get("status", "IN_REVIEW")}
+    from .plan_view import build_plan_view
+    draft["plan_view"] = build_plan_view({**draft, "patient_id": patient_id, "status": updated["status"]})
     PLANS[patient_id] = updated
     persisted = write_plan(patient_id, updated)
     if not persisted:
@@ -624,6 +628,9 @@ def review_plan(patient_id: str, body: ReviewIn) -> dict[str, Any]:
             raise HTTPException(422, {"message": "安全校验未通过，不能发布", "errors": errors})
         status_map["publish"] = "PUBLISHED"
     plan["status"] = status_map.get(body.action, plan.get("status"))
+    if isinstance(plan.get("draft"), dict):
+        from .plan_view import build_plan_view
+        plan["draft"]["plan_view"] = build_plan_view({**plan["draft"], "patient_id": patient_id, "status": plan["status"]})
     plan["reviewer"] = body.reviewer
     plan["review_note"] = body.note
     plan["reviewed_at"] = datetime.now(timezone.utc).isoformat()
