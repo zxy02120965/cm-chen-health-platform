@@ -118,6 +118,10 @@ def _role_for_group(group: str, day: dict[str, Any]) -> str | None:
 
 
 def _range_contains(value: int, declared: Any) -> bool:
+    if isinstance(declared, str) and declared in {">0_or_as_tolerated", "as_tolerated"}:
+        # This is a contract semantic, not a numeric prescription.  Zero is
+        # valid when no safe/traceable functional action is available.
+        return value >= 0
     if isinstance(declared, (list, tuple)) and len(declared) == 2:
         try:
             return float(declared[0]) <= value <= float(declared[1])
@@ -155,6 +159,7 @@ def build_canonical_exercise_week(
     surgery_window: Any = None,
     safety_level: str | None = None,
     allowed_action_ids: set[str] | list[str] | None = None,
+    e_formal_aerobic_eligibility: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     """Adapt the final legacy schedule and return (canonical, projection, flat)."""
     combo = combo or {}
@@ -270,17 +275,59 @@ def build_canonical_exercise_week(
         "exercise_dose_status": dose_status,
     }
     if context["primary_nutrition_phenotype"] == "E":
-        eligibility_reason = "V4_E_ELIGIBILITY_PENDING_PHASE_3B_2"
-        context["formal_aerobic_eligibility"] = {"status": "NOT_ASSESSED", "reasons": [eligibility_reason]}
-        context["e_formal_aerobic_validation"] = {
-            "eligibility_status": "NOT_ASSESSED",
-            "formal_aerobic_days_target": None,
-            "zero_day_reason_present": False,
-            "functional_activity_preserved_when_safe": None,
-            "status": "FAIL",
-            "reason_codes": ["E_ELIGIBILITY_NOT_ASSESSED"],
+        eligibility = deepcopy(e_formal_aerobic_eligibility) if e_formal_aerobic_eligibility else {
+            "phenotype": "E",
+            "intake_stability": "UNKNOWN",
+            "weight_trend": "UNKNOWN",
+            "fatigue_recovery": "UNKNOWN",
+            "borg_function_review": "UNKNOWN",
+            "safety_level": safety_level.upper() if safety_level else "UNKNOWN",
+            "status": "NOT_ASSESSED",
+            "reasons": ["V4_E_ELIGIBILITY_PENDING_PHASE_3B_2"],
         }
-        manual_review.append(eligibility_reason)
+        context["formal_aerobic_eligibility"] = eligibility
+        actual_formal_days = derived["formal_aerobic_days_actual"]
+        eligibility_status = eligibility.get("status")
+        if eligibility_status == "DEFERRED_FOR_NUTRITION_RECOVERY":
+            target = 0
+            zero_day_reason_present = actual_formal_days == 0
+            validation_status = "PASS" if zero_day_reason_present else "FAIL"
+            reason_codes = list(eligibility.get("reasons") or [])
+            if not zero_day_reason_present:
+                reason_codes.append("FORMAL_AEROBIC_SCHEDULE_NOT_DEFERRED")
+            functional_preserved = True if derived["functional_activity_days_actual"] > 0 else None
+        elif eligibility_status == "ALLOWED_LOW_DOSE":
+            target = actual_formal_days if actual_formal_days > 0 else None
+            zero_day_reason_present = False
+            validation_status = "PASS" if target is not None else "FAIL"
+            reason_codes = [] if validation_status == "PASS" else ["FORMAL_AEROBIC_TARGET_UNAVAILABLE"]
+            functional_preserved = None
+        else:
+            target = None
+            zero_day_reason_present = False
+            validation_status = "FAIL"
+            reason_codes = ["E_ELIGIBILITY_NOT_ASSESSED"]
+            functional_preserved = None
+        context["e_formal_aerobic_validation"] = {
+            "eligibility_status": eligibility_status,
+            "formal_aerobic_days_target": target,
+            "zero_day_reason_present": zero_day_reason_present,
+            "functional_activity_preserved_when_safe": functional_preserved,
+            "status": validation_status,
+            "reason_codes": list(dict.fromkeys(reason_codes)),
+        }
+        if derived["functional_activity_days_actual"] > 0:
+            context["functional_activity_materialization"] = {
+                "status": "PASS",
+                "reason_codes": [],
+            }
+        else:
+            context["functional_activity_materialization"] = {
+                "status": "UNAVAILABLE",
+                "reason_codes": ["FUNCTIONAL_ACTIVITY_SOURCE_UNAVAILABLE"],
+            }
+        if eligibility_status == "NOT_ASSESSED":
+            manual_review.append("V4_E_ELIGIBILITY_PENDING_PHASE_3B_2")
     if context["complexity_overlay"] == "F":
         context["complexity_reduction"] = {
             "applied": True,

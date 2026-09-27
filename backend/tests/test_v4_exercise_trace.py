@@ -66,16 +66,28 @@ def test_frozen_golden_cases_get_structural_trace_and_e_pending_marker():
         assert len(trace["daily_schedule"]) == 7
         assert all(session["session_role"] in {"FORMAL_AEROBIC", "RESISTANCE", "FLEXIBILITY"} for day in trace["daily_schedule"] for session in day["sessions"])
         if case_id == "SYN-E01":
-            assert trace["context_snapshot"]["formal_aerobic_eligibility"]["status"] == "NOT_ASSESSED"
+            assert trace["context_snapshot"]["formal_aerobic_eligibility"]["status"] == "DEFERRED_FOR_NUTRITION_RECOVERY"
             validation = trace["context_snapshot"]["e_formal_aerobic_validation"]
-            assert validation["eligibility_status"] == "NOT_ASSESSED"
-            assert validation["status"] == "FAIL"
-            assert validation["reason_codes"] == ["E_ELIGIBILITY_NOT_ASSESSED"]
-            assert validation["formal_aerobic_days_target"] is None
+            assert validation["eligibility_status"] == "DEFERRED_FOR_NUTRITION_RECOVERY"
+            assert validation["status"] == "PASS"
+            assert "MARKEDLY_REDUCED_INTAKE" in validation["reason_codes"]
+            assert validation["formal_aerobic_days_target"] == 0
+            assert validation["zero_day_reason_present"] is True
+            assert validation["functional_activity_preserved_when_safe"] is None
+            assert trace["context_snapshot"]["functional_activity_materialization"]["status"] == "UNAVAILABLE"
+            assert trace["weekly_schedule_declared"]["functional_activity_days_target"] == ">0_or_as_tolerated"
             assert isinstance(validation["formal_aerobic_days_target"], (int, float, type(None)))
             assert not isinstance(validation["formal_aerobic_days_target"], (list, tuple, range))
-            assert trace["weekly_schedule_declared"]["formal_aerobic_days_target"] == (2, 3)
-            assert trace["weekly_schedule_derived"]["formal_aerobic_days_actual"] == 3
+            assert trace["weekly_schedule_declared"]["formal_aerobic_days_target"] == 0
+            assert plan["exercise_weekly_prescription"]["legacy_aerobic_days_target"] == (2, 3)
+            assert trace["weekly_schedule_derived"]["formal_aerobic_days_actual"] == 0
+            assert trace["context_snapshot"]["formal_aerobic_eligibility"]["weight_trend"] == "UNKNOWN"
+            assert trace["context_snapshot"]["formal_aerobic_eligibility"]["borg_function_review"] == "UNKNOWN"
+            assert all(
+                session["session_role"] != "FORMAL_AEROBIC"
+                for day in trace["daily_schedule"]
+                for session in day["sessions"]
+            )
             assert "PENDING_REVIEW" not in validation.values()
             assert trace["trace_materialization_status"] == "FULL"
 

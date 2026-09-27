@@ -1854,6 +1854,29 @@ def build_v2_plan(
         exercise_catalog, phenotype, restrictions=restrictions, safety_level=safety_level,
         pulmonary=selected_pulmonary,
     )
+    e_formal_aerobic_eligibility = None
+    if nutrition_phenotype == "E":
+        from .v4_e_exercise_eligibility import (
+            apply_e_eligibility_to_schedule,
+            derive_e_formal_aerobic_eligibility,
+        )
+        e_formal_aerobic_eligibility = derive_e_formal_aerobic_eligibility(
+            payload,
+            safety_level=safety_level,
+            primary_nutrition_phenotype=nutrition_phenotype,
+            existing_reason_codes=evaluation.get("safety_reason_codes", []),
+        )
+        v3_weekly_schedule, e_schedule_adjustment = apply_e_eligibility_to_schedule(
+            v3_weekly_schedule,
+            e_formal_aerobic_eligibility,
+        )
+        if e_schedule_adjustment.get("formal_aerobic_days_target") is not None:
+            # Preserve the legacy candidate range for audit while making the
+            # canonical trace's declared target reflect the resolved E gate.
+            v3_combo = deepcopy(v3_combo)
+            v3_combo["legacy_aerobic_days_target"] = v3_combo.get("aerobic_days_target")
+            v3_combo["aerobic_days_target"] = e_schedule_adjustment["formal_aerobic_days_target"]
+            v3_combo["functional_activity_days_target"] = e_schedule_adjustment.get("functional_activity_days_target")
     # Phase 3B-1: adapt the final legacy V3 candidate into one canonical,
     # auditable exercise week.  Selection, dose intent and clinical rules
     # remain owned by build_v3_weekly_exercise; this adapter only normalizes
@@ -1867,6 +1890,7 @@ def build_v2_plan(
         surgery_window=_value(payload, "q6_surgeryWindow"),
         safety_level=safety_level,
         allowed_action_ids=set(v3_combo.get("allowed_action_ids") or []),
+        e_formal_aerobic_eligibility=e_formal_aerobic_eligibility,
     )
     v3_weekly_schedule = v4_weekly_schedule
     v3_flat_exercise = v4_flat_exercise
@@ -2178,6 +2202,10 @@ def build_v2_plan(
         "pulmonary_rule_version": "V1.0",
         "pulmonary_dose_level": pulmonary_dose_level,
         "pulmonary_selection_trace": pulmonary_trace,
+        "formal_aerobic_eligibility": deepcopy(e_formal_aerobic_eligibility),
+        "e_formal_aerobic_validation": deepcopy(
+            canonical_exercise_week.get("context_snapshot", {}).get("e_formal_aerobic_validation")
+        ),
         "enhanced_eligible": enhanced_ok,
         "enhanced_ineligible_reasons": enhanced_reasons,
         "goal_conflict": goal_conflict,
