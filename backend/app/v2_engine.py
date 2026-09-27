@@ -1956,7 +1956,7 @@ def build_v2_plan(
     # Phase 4B-1: materialize pulmonary output only after the legacy selector
     # and final weekly schedule are complete.  The canonical pulmonary root is
     # the source for both compatibility projections below.
-    from .v4_pulmonary_trace import build_pulmonary_trace, project_pulmonary_plan, project_weekly_schedule
+    from .v4_pulmonary_trace import apply_pulmonary_f_overlay, build_pulmonary_trace, project_pulmonary_plan, project_weekly_schedule
     pulmonary_rehab_trace = build_pulmonary_trace(
         payload,
         selected_pulmonary,
@@ -1966,6 +1966,7 @@ def build_v2_plan(
         selection_trace=pulmonary_trace,
         complexity_overlay=v4_phenotype_contract.get("complexity_overlay"),
     )
+    pulmonary_rehab_trace = apply_pulmonary_f_overlay(pulmonary_rehab_trace, complexity_overlay_trace)
     v3_weekly_schedule = project_weekly_schedule(pulmonary_rehab_trace, v3_weekly_schedule)
     selected_pulmonary = project_pulmonary_plan(pulmonary_rehab_trace)
     # Phase 3B-1: adapt the final legacy V3 candidate into one canonical,

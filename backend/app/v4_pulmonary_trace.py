@@ -144,13 +144,19 @@ def _validate_trace(root: dict[str, Any]) -> dict[str, Any]:
     actions = [action for day in days for action in day.get("actions", [])]
     p05 = root.get("p05_gate") or {}
     p06 = root.get("p06_gate") or {}
+    minimum = root.get("minimum_sufficient_set") or {}
+    overlay = root.get("pulmonary_complexity_overlay") or {}
+    overlay_consistent = True
+    if root.get("context_snapshot", {}).get("complexity_overlay") == "F":
+        strategy = (overlay.get("strategy") or {}).get("REDUCE_OPTIONAL_TASK_LOAD") or {}
+        overlay_consistent = bool(overlay.get("overlay") == "F" and strategy.get("after_action_ids") == root.get("selected_action_ids"))
     checks = {
         "all_7_days_materialized": len(days) == 7 and [day.get("day") for day in days] == list(range(1, 8)),
         "all_patient_actions_mapped": all(action.get("action_id") in _PULMONARY_IDS for action in actions),
         "all_actions_from_p01_to_p06": all(action.get("action_id") in _PULMONARY_IDS for action in actions),
         "all_actions_have_name": all(action.get("action_name") for action in actions),
         "all_actions_have_dose_or_explicit_unavailable_status": all(action.get("dose") or action.get("dose_status") == "UNAVAILABLE" for action in actions),
-        "minimum_sufficient_set_respected": bool(root.get("minimum_sufficient_set", {}).get("required_needs") is not None),
+        "minimum_sufficient_set_respected": bool(minimum.get("required_needs") is not None and minimum.get("selected_action_ids") == root.get("selected_action_ids")),
         "p05_condition_respected": (not p05.get("selected")) or (
             p05.get("dose_source_available") is True
             and ((p05.get("mode") == "SKILL_LEARNING" and p05.get("skill_learning") is True and p05.get("clinical_need_for_clearance") is False)
@@ -158,9 +164,97 @@ def _validate_trace(root: dict[str, Any]) -> dict[str, Any]:
         ),
         "p06_gate_respected": bool(p06.get("eligible") is False or (p06.get("sputum_or_clearance_need") and p06.get("device_available") and p06.get("clinician_order_or_guidance") is True)),
         "no_external_unrequested_sources": all((action.get("source_provenance") or {}).get("source_version") for action in actions),
+        "f_overlay_consistent": overlay_consistent,
     }
     checks["status"] = "PASS" if all(checks.values()) else "FAIL"
     return checks
+
+
+def _pulmonary_snapshot(root: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "selected_action_ids": deepcopy(root.get("selected_action_ids") or []),
+        "omitted_action_ids": deepcopy((root.get("minimum_sufficient_set") or {}).get("omitted_action_ids") or []),
+        "daily_action_ids": {
+            str(day.get("day")): [action.get("action_id") for action in day.get("actions", [])]
+            for day in root.get("daily_schedule", [])
+        },
+        "p05_gate": deepcopy(root.get("p05_gate") or {}),
+        "p06_gate": deepcopy(root.get("p06_gate") or {}),
+        "dose": {
+            action.get("action_id"): {"dose": action.get("dose"), "dose_status": action.get("dose_status")}
+            for day in root.get("daily_schedule", [])
+            for action in day.get("actions", [])
+            if action.get("action_id")
+        },
+        "source_provenance": deepcopy(root.get("source_provenance") or {}),
+    }
+
+
+def apply_pulmonary_f_overlay(trace: dict[str, Any], complexity_trace: dict[str, Any] | None) -> dict[str, Any]:
+    """Defer only optional P05 skill learning for an evidence-backed F overlay."""
+    root = deepcopy(trace)
+    base_snapshot = _pulmonary_snapshot(root)
+    overlay = str((root.get("context_snapshot") or {}).get("complexity_overlay") or "none").upper()
+    reasons = [str(reason) for reason in (complexity_trace or {}).get("trigger_reasons", []) if str(reason) != "EDUCATION_ONLY"] if overlay == "F" else []
+    has_complexity_evidence = bool((complexity_trace or {}).get("material_execution_burden_present") or reasons)
+    p05 = root.get("p05_gate") or {}
+    p05_optional = bool(p05.get("selected") and p05.get("mode") == "SKILL_LEARNING" and not p05.get("sputum_or_clearance_need"))
+    applied = overlay == "F" and has_complexity_evidence and p05_optional
+    if applied:
+        reasons = list(dict.fromkeys([*reasons, "COMPLEXITY_OVERLAY_F"]))
+        for day in root.get("daily_schedule", []):
+            day["actions"] = [action for action in day.get("actions", []) if action.get("action_id") != "P05"]
+            day["empty_reason"] = None if day.get("actions") else "NO_PULMONARY_ACTIONS_SCHEDULED"
+        root["selected_action_ids"] = [action_id for action_id in root.get("selected_action_ids", []) if action_id != "P05"]
+        minimum = root.get("minimum_sufficient_set") or {}
+        minimum["selected_action_ids"] = deepcopy(root["selected_action_ids"])
+        minimum["omitted_action_ids"] = [action_id for action_id in _PULMONARY_IDS if action_id not in root["selected_action_ids"]]
+        omission_reasons = minimum.setdefault("omission_reasons", {})
+        omission_reasons["P05"] = "OPTIONAL_SKILL_LEARNING_DEFERRED_FOR_COMPLEXITY"
+        minimum.setdefault("omission_reason_text", {})["P05"] = "无当前痰液/排痰需要；本周因复杂度、时间和疼痛执行负担，优先保留1–2个基础动作，P05技能学习延后复评。"
+        root["minimum_sufficient_set"] = minimum
+        root["p05_gate"] = {
+            "selected": False,
+            "mode": "NOT_SELECTED",
+            "skill_learning": False,
+            "clinical_need_for_clearance": False,
+            "reason": "OPTIONAL_SKILL_LEARNING_DEFERRED_FOR_COMPLEXITY",
+            "sputum_or_clearance_need": False,
+            "dose_source_available": bool(p05.get("dose_source_available")),
+        }
+        root["manual_review_reasons"] = list(dict.fromkeys([*(root.get("manual_review_reasons") or []), "OPTIONAL_P05_SKILL_LEARNING_DEFERRED_FOR_COMPLEXITY"]))
+    after_snapshot = _pulmonary_snapshot(root)
+    root["base_pulmonary_before_f_overlay"] = base_snapshot
+    root["final_pulmonary_after_f_overlay"] = after_snapshot
+    root["pulmonary_complexity_overlay"] = {
+        "overlay": "F" if overlay == "F" else "none",
+        "applied": applied,
+        "source_reasons": reasons,
+        "strategy": {
+            "REDUCE_OPTIONAL_TASK_LOAD": {
+                "applicability": "APPLIED" if applied else "NOT_APPLIED",
+                "before_action_ids": base_snapshot["selected_action_ids"],
+                "after_action_ids": after_snapshot["selected_action_ids"],
+                "removed_or_deferred_action_ids": ["P05"] if applied else [],
+                "reasons": reasons + (["OPTIONAL_SKILL_LEARNING_DEFERRED_FOR_COMPLEXITY"] if applied else []),
+            }
+        },
+        "unchanged_actions": ["P01", "P02"],
+        "unsupported_strategies": {
+            "dose_reduction": {"status": "NOT_APPLIED", "reason": "PULMONARY_DOSE_UNCHANGED"},
+            "seated_or_supported": {"status": "NOT_APPLIED", "reason": "NO_EXPLICIT_SUPPORT_FACT"},
+            "increased_supervision": {"status": "NOT_APPLIED", "reason": "NO_EXPLICIT_SUPERVISION_NEED"},
+        },
+        "permanent_exclusion": False,
+    }
+    root["trace_validation"] = _validate_trace(root)
+    if root["trace_validation"]["status"] == "PASS":
+        root["trace_materialization_status"] = "FULL"
+        root["pulmonary_trace_full"] = True
+    else:
+        root["trace_materialization_status"] = "MISSING"
+        root["pulmonary_trace_full"] = False
+    return root
 
 
 def build_pulmonary_trace(
