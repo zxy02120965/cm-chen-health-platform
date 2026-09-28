@@ -628,23 +628,70 @@ def _hard_publication_blockers(draft: dict[str, Any], validation: dict[str, Any]
         if "能量状态为PROVISIONAL/UNAVAILABLE" in text and energy_state != "UNAVAILABLE":
             continue
         blockers.append(text)
-    if draft.get("publication_blocked") and not reasons:
+    nested_gate_blocked = bool((draft.get("safety_rules") or {}).get("publication_blocked"))
+    if (draft.get("publication_blocked") or nested_gate_blocked) and not reasons:
         blockers.append("方案标记为禁止发布")
     if validation.get("publish_validation") == "BLOCKED" and not reasons and not blockers:
         blockers.append("发布校验未通过")
     return list(dict.fromkeys(blockers))
 
 
+def _derive_effective_publication_gate(
+    draft: dict[str, Any],
+    validation: dict[str, Any],
+    *,
+    clinician_review_status: str | None = None,
+) -> dict[str, Any]:
+    """Derive one publication gate for review, persistence, and publishing.
+
+    Provisional/candidate energy review is resolved by an explicit clinician
+    approval, while hard content/safety/execution failures remain blocking.
+    The result also exposes the review-resolvable reasons for audit without
+    changing their underlying clinical status.
+    """
+    hard_blockers = _hard_publication_blockers(draft, validation)
+    reasons = [str(reason) for reason in (validation.get("publish_block_reasons") or [])]
+    review_resolvable = [reason for reason in reasons if reason not in hard_blockers]
+    approved = clinician_review_status == "APPROVED"
+    remaining = list(hard_blockers)
+    if not approved:
+        remaining.extend(review_resolvable)
+    return {
+        "publication_blocked": bool(remaining),
+        "hard_blockers": list(dict.fromkeys(hard_blockers)),
+        "review_resolvable_blockers": list(dict.fromkeys(review_resolvable)),
+        "remaining_blockers": list(dict.fromkeys(remaining)),
+        "ready_to_publish": bool(approved and not hard_blockers),
+    }
+
+
 @app.post("/api/patients/{patient_id}/plans/review")
 def review_plan(patient_id: str, body: ReviewIn) -> dict[str, Any]:
     _patient_or_404(patient_id)
-    plan = PLANS.get(patient_id) or read_patient_data(patient_id)[1]
+    # Publishing must always operate on the latest persisted version, rather
+    # than an in-memory object left by an earlier request/process.
+    plan = read_patient_data(patient_id)[1] if body.action == "publish" else (PLANS.get(patient_id) or read_patient_data(patient_id)[1])
     if not plan:
         raise HTTPException(404, "请先生成方案草稿")
     # ``read_patient_data`` returns the version content directly, while the
     # in-memory response wraps it under ``draft``.  Normalize both shapes so
     # review actions always operate on the same structured plan object.
-    draft = plan.get("draft") or (plan if plan.get("contract_version") else {})
+    if isinstance(plan.get("draft"), dict):
+        draft = plan["draft"]
+    elif plan.get("contract_version"):
+        # DB reads return the flat content snapshot.  Copy it before wrapping
+        # so ``plan["draft"]`` never points back to ``plan`` (which would make
+        # persistence JSON-circular after a restart/review action).
+        draft = dict(plan)
+        for key in ("plan_id", "plan_version_id", "patient_id", "version", "status", "published_at"):
+            draft.pop(key, None)
+        plan = dict(plan)
+    else:
+        draft = {}
+        plan = dict(plan)
+    # Keep one mutable snapshot regardless of whether this request came from
+    # memory (wrapper shape) or a fresh DB reload (flat content shape).
+    plan["draft"] = draft
     validation = draft.get("validation_result", {}) or {}
     status_map = {"start_review": "IN_REVIEW", "return": "RETURNED", "pause": "PAUSED"}
     if body.action == "approve":
@@ -655,7 +702,8 @@ def review_plan(patient_id: str, body: ReviewIn) -> dict[str, Any]:
             raise HTTPException(422, {"message": "方案内容校验未通过，不能审核", "errors": validation.get("errors", [])})
         if validation.get("safety_validation") == "BLOCKED" or draft.get("safety_level") == "red":
             raise HTTPException(422, {"message": "安全校验阻止审核通过", "errors": validation.get("publish_block_reasons", [])})
-        hard_blockers = _hard_publication_blockers(draft, validation)
+        gate = _derive_effective_publication_gate(draft, validation, clinician_review_status=None)
+        hard_blockers = gate["hard_blockers"]
         if hard_blockers:
             raise HTTPException(422, {"message": "方案存在硬性阻断，不能审核通过", "errors": hard_blockers})
         draft["review_status"] = "APPROVED"
@@ -666,6 +714,10 @@ def review_plan(patient_id: str, body: ReviewIn) -> dict[str, Any]:
         validation["publish_validation"] = "BLOCKED" if hard_blockers else "PASS"
         draft["publication_blocked"] = bool(hard_blockers)
         draft["publish_eligible"] = not hard_blockers
+        # Keep the nested safety/publication projection in lockstep with the
+        # effective gate. Clinical safety level and reasons are untouched.
+        if isinstance(draft.get("safety_rules"), dict):
+            draft["safety_rules"]["publication_blocked"] = bool(hard_blockers)
         status_map["approve"] = "APPROVED_PENDING_PUBLISH" if hard_blockers else "READY_TO_PUBLISH"
         validation["review_validation"] = "PASS"
         draft["validation_result"] = validation
@@ -673,13 +725,32 @@ def review_plan(patient_id: str, body: ReviewIn) -> dict[str, Any]:
     if body.action == "publish":
         if plan.get("status") not in {"READY_TO_PUBLISH", "APPROVED_PENDING_PUBLISH", "APPROVED_PENDING_MDT_ACTIVATION"}:
             raise HTTPException(422, "请先完成审核通过")
+        if draft.get("review_status") != "APPROVED":
+            raise HTTPException(422, "请先完成审核通过")
+        gate = _derive_effective_publication_gate(draft, validation, clinician_review_status="APPROVED")
+        if gate["hard_blockers"]:
+            raise HTTPException(422, {"message": "安全校验未通过，不能发布", "errors": gate["hard_blockers"]})
+        draft["publication_blocked"] = False
+        draft["publish_eligible"] = True
+        if isinstance(draft.get("safety_rules"), dict):
+            draft["safety_rules"]["publication_blocked"] = False
+        validation["publish_block_reasons"] = []
+        validation["publish_validation"] = "PASS"
+        draft["validation_result"] = validation
         with SessionLocal() as session:
             context = _governance_context(session)
         errors = validate_draft(draft, context["active_mdt_configs"])
-        if errors or draft.get("publication_blocked") or validation.get("publish_validation") == "BLOCKED":
+        if errors or gate["hard_blockers"]:
             raise HTTPException(422, {"message": "安全校验未通过，不能发布", "errors": errors})
         status_map["publish"] = "PUBLISHED"
     plan["status"] = status_map.get(body.action, plan.get("status"))
+    if body.action == "start_review":
+        draft["review_status"] = "IN_REVIEW"
+    elif body.action == "return":
+        draft["review_status"] = "RETURNED"
+        draft["publish_eligible"] = False
+    elif body.action == "publish":
+        draft["review_status"] = "APPROVED"
     if isinstance(plan.get("draft"), dict):
         from .plan_view import build_plan_view
         plan["draft"]["plan_view"] = build_plan_view({**plan["draft"], "patient_id": patient_id, "status": plan["status"]})

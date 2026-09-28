@@ -739,6 +739,18 @@ def update_plan(patient_id: str, plan: dict[str, Any], action: str | None = None
             status = plan.get("status", plan_row.status)
             plan_row.status = status
             version.status = status
+            # Lifecycle actions update the immutable version snapshot as well
+            # as its workflow column.  Without this, a restart reloads the
+            # original generated content and loses review/gate state.
+            content = dict(plan.get("draft") or plan)
+            content["status"] = status
+            if plan.get("reviewer") is not None:
+                content["reviewer"] = plan.get("reviewer")
+            if plan.get("review_note") is not None:
+                content["review_note"] = plan.get("review_note")
+            if plan.get("reviewed_at") is not None:
+                content["reviewed_at"] = plan.get("reviewed_at")
+            version.content_json = content
             if status == "PUBLISHED":
                 plan_row.published_at = datetime.utcnow()
                 version.published_at = plan_row.published_at
