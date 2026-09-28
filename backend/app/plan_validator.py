@@ -17,6 +17,15 @@ def validate_plan(plan: dict[str, Any], *, mode: str = "production", allowed_exe
     checks["nutrition.main_meal_completeness"] = "PASS" if all(all(m.get(k) not in (None, "") for k in ("ingredient_name", "ingredient_amount", "raw_or_cooked_basis", "cooking_method")) for m in main) else "FAIL"
     if checks["nutrition.main_meal_completeness"] == "FAIL": errors.append("正餐缺少食材/重量/生熟口径/做法")
     checks["nutrition.closure"] = "PASS" if diet.get("nutrition_plan_validation") == "PASS" or (diet.get("daily_energy_total") and diet.get("daily_protein_total")) else "FAIL"
+    diet_trace = plan.get("diet_plan_trace") or {}
+    replacement_validation = diet_trace.get("replacement_integrity_validation") or {}
+    realism_validation = diet_trace.get("meal_realism_validation") or {}
+    checks["nutrition.replacement_integrity"] = replacement_validation.get("status", "WARN")
+    checks["nutrition.meal_realism"] = realism_validation.get("status", "WARN")
+    if checks["nutrition.replacement_integrity"] == "FAIL":
+        errors.append("饮食替换完整性未通过")
+    if checks["nutrition.meal_realism"] == "FAIL":
+        warnings.append("存在餐次执行真实性待复核项")
     exercises = plan.get("exercise_plan") or []
     if allowed_exercise_ids is not None and any(x.get("exercise_id") not in allowed_exercise_ids for x in exercises): errors.append("运动包含非允许动作ID")
     checks["exercise.allowed_ids"] = "PASS" if not errors or not any("运动包含" in e for e in errors) else "FAIL"

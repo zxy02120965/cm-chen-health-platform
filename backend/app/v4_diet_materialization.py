@@ -46,6 +46,9 @@ def _failure_item(day: int, meal: str, index: int, legacy: dict[str, Any], error
         "source_version": runtime.asset_provenance.food_execution.version,
         "source_asset_role": runtime.asset_provenance.food_execution.role,
         "review_flags": ["MATERIALIZATION_FAIL"],
+        "replacements": deepcopy(legacy.get("replacements") or []),
+        "replacement_availability": legacy.get("replacement_availability") or "NO_APPROVED_STRUCTURED_REPLACEMENT",
+        "replacement_integrity": deepcopy(legacy.get("replacement_integrity") or {"status": "NOT_AVAILABLE"}),
     }
 
 
@@ -128,6 +131,9 @@ def _materialize_item(day: int, meal: str, index: int, legacy: dict[str, Any], *
         "source_version": runtime.asset_provenance.food_execution.version,
         "source_asset_role": runtime.asset_provenance.food_execution.role,
         "review_flags": ["SIMPLE_METHOD_REVIEW"] if not method else [],
+        "replacements": deepcopy(legacy.get("replacements") or []),
+        "replacement_availability": legacy.get("replacement_availability") or "NO_APPROVED_STRUCTURED_REPLACEMENT",
+        "replacement_integrity": deepcopy(legacy.get("replacement_integrity") or {"status": "NOT_AVAILABLE"}),
     }
     if _mode(energy_state) == "STRUCTURE_ONLY":
         item["nutrition_status"] = "STRUCTURE_ONLY"
@@ -166,6 +172,9 @@ def _legacy_projection(canonical_meal: dict[str, Any], legacy_meal: dict[str, An
             "nutrition_authority": "V4_RECALCULATED" if planned else "LEGACY_NON_AUTHORITATIVE",
             "legacy_estimated_nutrition": deepcopy({"energy": legacy_meal.get("estimated_energy"), "protein": legacy_meal.get("estimated_protein"), "carbohydrate": legacy_meal.get("estimated_carbohydrate"), "fat": legacy_meal.get("estimated_fat"), "authoritative": False}),
             "status": "ACTIVE" if item.get("execution_materialization_status") == "PASS" else "MATERIALIZATION_FAIL",
+            "replacements": deepcopy(item.get("replacements") or []),
+            "replacement_availability": item.get("replacement_availability"),
+            "replacement_integrity": deepcopy(item.get("replacement_integrity") or {}),
         })
     planned_meal = canonical_meal.get("planned_nutrition") or {}
     return {
@@ -189,6 +198,8 @@ def _legacy_projection(canonical_meal: dict[str, Any], legacy_meal: dict[str, An
         "nutrition_status": canonical_meal.get("nutrition_status"),
         "nutrition_recalculation_status": canonical_meal.get("nutrition_recalculation_status"),
         "materialization_source": MATERIALIZATION_SOURCE,
+        "meal_realism": deepcopy(canonical_meal.get("meal_realism") or legacy_meal.get("meal_realism") or {}),
+        "replacements_present": any(bool(item.get("replacements")) for item in items),
     }
 
 
@@ -221,7 +232,7 @@ def materialize_canonical_week_diet(rotating_meals: list[dict[str, dict[str, Any
             nutrition_status = "ACTIVE_RECALCULATED" if planned is not None else ("STRUCTURE_ONLY" if _mode(state) == "STRUCTURE_ONLY" else "NEEDS_SOURCE_RECALC")
             statuses = [item.get("nutrition_recalculation_status") for item in items]
             recalc_status = "COMPLETED" if statuses and all(value == "COMPLETED" for value in statuses) else ("NOT_APPLICABLE" if _mode(state) == "STRUCTURE_ONLY" else "PENDING")
-            meals[meal_name] = {"meal": meal_name, "food_items": items, "planned_nutrition": planned, "nutrition_status": nutrition_status, "nutrition_recalculation_status": recalc_status}
+            meals[meal_name] = {"meal": meal_name, "food_items": items, "planned_nutrition": planned, "nutrition_status": nutrition_status, "nutrition_recalculation_status": recalc_status, "meal_realism": deepcopy(legacy_meal.get("meal_realism") or {})}
             projected[meal_name] = _legacy_projection(meals[meal_name], legacy_meal)
         canonical_days.append({"day": day_index + 1, "meals": meals})
         projected_days.append(projected)

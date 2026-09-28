@@ -145,6 +145,8 @@ def build_plan_view(plan: dict[str, Any]) -> dict[str, Any]:
             "patient_projection": deepcopy(plan.get("weekly_schedule") or []),
             "trace_validation": _root_validation(diet_root),
             "provenance_summary": _food_provenance_summary(diet_root),
+            "replacement_integrity_validation": deepcopy(diet_root.get("replacement_integrity_validation") or {}),
+            "meal_realism_validation": deepcopy(diet_root.get("meal_realism_validation") or {}),
         },
         "exercise_plan": {
             "status": exercise_root.get("trace_materialization_status") or "MISSING",

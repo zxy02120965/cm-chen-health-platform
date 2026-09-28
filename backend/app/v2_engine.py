@@ -568,7 +568,7 @@ def enhanced_eligibility(payload: dict[str, Any], phenotype: str, safety_level: 
 
 
 def _meal(slot: str, food: dict[str, Any], *, mdt_confirmed: bool = False) -> dict[str, Any]:
-    return {"meal_type": slot, "category": food.get("category"), "meal_name": food.get("meal_name") or food.get("name"), "dish_name": food.get("dish_name") or food.get("name"), "component_id": food.get("component_id"), "ingredient_name": food.get("ingredient_name") or food.get("ingredients"), "ingredient_amount": food.get("ingredient_amount") or food.get("ingredient_amounts") or food.get("amount"), "unit": food.get("unit"), "raw_or_cooked_basis": food.get("raw_or_cooked_basis"), "weight_basis": food.get("weight_basis") or food.get("raw_or_cooked_basis"), "base_portion": deepcopy(food.get("base_portion")), "cooking_method": food.get("cooking_method"), "brief_instructions": food.get("brief_instructions") or "按医护审核的份量烹调，少油少盐。", "estimated_energy": food.get("kcal_estimate", food.get("energy_kcal")), "estimated_protein": food.get("protein_g"), "estimated_carbohydrate": food.get("carbohydrate_g"), "estimated_fat": food.get("fat_g"), "portion_options": deepcopy(food.get("portion_options")) if food.get("portion_options") else None, "portion_min": food.get("portion_min"), "portion_max": food.get("portion_max"), "portion_step": food.get("portion_step"), "portion_boundary_source": food.get("portion_boundary_source"), "replacement_options": food.get("replacement_options", food.get("replacement_ids", [])), "knowledge_item_id": food.get("knowledge_item_id") or food.get("component_id"), "knowledge_version": food.get("knowledge_version") or food.get("source_version", "V2.0"), "mdt_confirmed": mdt_confirmed, "status": "候选组件，待医护确认" if not mdt_confirmed else "ACTIVE"}
+    return {"meal_type": slot, "category": food.get("category"), "meal_name": food.get("meal_name") or food.get("name"), "dish_name": food.get("dish_name") or food.get("name"), "component_id": food.get("component_id"), "ingredient_name": food.get("ingredient_name") or food.get("ingredients"), "ingredient_amount": food.get("ingredient_amount") or food.get("ingredient_amounts") or food.get("amount"), "unit": food.get("unit"), "raw_or_cooked_basis": food.get("raw_or_cooked_basis"), "weight_basis": food.get("weight_basis") or food.get("raw_or_cooked_basis"), "base_portion": deepcopy(food.get("base_portion")), "cooking_method": food.get("cooking_method"), "brief_instructions": food.get("brief_instructions") or "按医护审核的份量烹调，少油少盐。", "estimated_energy": food.get("kcal_estimate", food.get("energy_kcal")), "estimated_protein": food.get("protein_g"), "estimated_carbohydrate": food.get("carbohydrate_g"), "estimated_fat": food.get("fat_g"), "portion_options": deepcopy(food.get("portion_options")) if food.get("portion_options") else None, "portion_min": food.get("portion_min"), "portion_max": food.get("portion_max"), "portion_step": food.get("portion_step"), "portion_boundary_source": food.get("portion_boundary_source"), "replacement_options": food.get("replacement_options", food.get("replacement_ids", [])), "approved_replacement_group": food.get("approved_replacement_group"), "meal_slot": list(food.get("meal_type") or [slot]) if isinstance(food.get("meal_type"), (list, tuple)) else food.get("meal_type") or slot, "breakfast_allowed": food.get("breakfast_allowed"), "breakfast_priority": food.get("breakfast_priority"), "selection_metadata_source_role": food.get("selection_metadata_source_role"), "selection_metadata_source_version": food.get("selection_metadata_source_version"), "exact_nutrition_eligible": food.get("exact_nutrition_eligible"), "nutrition_source_pending": food.get("nutrition_source_pending"), "knowledge_item_id": food.get("knowledge_item_id") or food.get("component_id"), "knowledge_version": food.get("knowledge_version") or food.get("source_version", "V2.0"), "mdt_confirmed": mdt_confirmed, "status": "候选组件，待医护确认" if not mdt_confirmed else "ACTIVE"}
 
 def _composite_meal(slot: str, foods: list[dict[str, Any]], *, mdt_confirmed: bool) -> dict[str, Any]:
     """Combine approved component records without inventing nutrition values."""
@@ -2262,6 +2262,31 @@ def build_v2_plan(
         daily_closures,
         replacement_optimization,
     )
+    # Phase 5B-8B: approved executable replacements are a separate contract
+    # from the closure optimizer above.  They are attached only after the
+    # final F-overlay/closure meal set is known, and are materialized from the
+    # manifest-backed V1.3 execution mapping.
+    approved_replacement_trace = {"status": "NOT_APPLIED", "items": []}
+    meal_realism_trace = {"status": "NOT_APPLIED", "meals": []}
+    if nutrition_generation_status == "complete" and rotating_meals:
+        from .v4_food_replacement import attach_approved_replacements
+        from .v4_food_realism import annotate_week_meal_realism
+        from .v4_food_data import load_v4_food_data
+
+        approved_replacement_trace = attach_approved_replacements(
+            rotating_meals,
+            catalog_foods,
+            payload=payload,
+            energy_state=v4_energy_state,
+            runtime=load_v4_food_data(),
+            eligibility_checker=_food_allowed,
+        )
+        meal_realism_trace = annotate_week_meal_realism(
+            rotating_meals,
+            complexity_overlay=v4_phenotype_contract.get("complexity_overlay"),
+        )
+    nutrition_trace["approved_executable_replacements"] = deepcopy(approved_replacement_trace)
+    nutrition_trace["meal_realism_validation"] = deepcopy(meal_realism_trace)
     from .v4_food_overlay import summarize_food_week
     # The final snapshot is taken after the existing closure/replacement pass
     # so the trace describes the exact component set that will be materialized.
@@ -2290,6 +2315,12 @@ def build_v2_plan(
                 "food_complexity_overlay": deepcopy(food_complexity_overlay_trace),
             },
         )
+        from .v4_food_replacement import validate_replacement_root
+        from .v4_food_realism import validate_meal_realism_root
+        canonical_week_diet["replacement_integrity_validation"] = validate_replacement_root(canonical_week_diet)
+        canonical_week_diet["meal_realism_validation"] = validate_meal_realism_root(canonical_week_diet)
+        canonical_week_diet.setdefault("trace_validation", {})["replacement_integrity_pass"] = canonical_week_diet["replacement_integrity_validation"].get("status") == "PASS"
+        canonical_week_diet.setdefault("trace_validation", {})["meal_realism_validation"] = canonical_week_diet["meal_realism_validation"].get("status")
         rotating_meals = projected_rotating_meals
     except Exception as exc:  # explicit trace failure; never hide legacy state
         canonical_week_diet = {
