@@ -3,8 +3,10 @@ import { computed, onActivated, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { assessmentSections } from '../../config/assessmentQuestions'
 import { api } from '../../api/client'
-import { assessmentData, assessmentResultData, consultationData, dailyRecordData, getPatientView, patientProfileData, planData, savePlanDraft, addPlanReview, setPlanStatus, publishPlan, refreshPatientFromApi, reviewAssessment } from '../../stores/patientStore'
+import { assessmentData, assessmentResultData, consultationData, dailyRecordData, getPatientView, patientProfileData, planData, publishPlan, refreshPatientFromApi, reviewAssessment } from '../../stores/patientStore'
 import { labelFor, labelsFor } from '../../config/enumLabels'
+import ClinicianPlanView from '../../components/care/ClinicianPlanView.vue'
+import ClinicianPlanActions from '../../components/care/ClinicianPlanActions.vue'
 
 const route = useRoute()
 const patient = computed(() => getPatientView(route.params.id))
@@ -14,9 +16,11 @@ const assessmentResult = computed(() => { const value = assessmentResultData(rou
 const records = computed(() => dailyRecordData(route.params.id))
 const consultations = computed(() => consultationData(route.params.id))
 const plan = ref(planData(route.params.id))
-const editing = ref(false); const reviewOpen = ref(false); const reviewText = ref(''); const publishConfirm = ref(false); const draftJson = ref('')
+const reviewText = ref(''); const publishConfirm = ref(false)
 const openDays = ref([1, 'exercise-1'])
 const rawStructuredPlan = computed(() => plan.value?.draft || plan.value || {})
+const planView = computed(() => rawStructuredPlan.value?.plan_view || plan.value?.plan_view || null)
+const hasPlanView = computed(() => !!planView.value && typeof planView.value === 'object')
 const hasValue = (value) => value !== null && value !== undefined && value !== '' && !(Array.isArray(value) && !value.length)
 const nestedValue = (value) => {
   if (!hasValue(value)) return ''
@@ -103,11 +107,9 @@ async function refresh() { await refreshPatientFromApi(route.params.id, true); p
 onMounted(refresh); onActivated(refresh)
 function displayAssessment(field) { const value = field.type === 'profile_ref' ? patientProfileData(route.params.id)[field.profileKey] : assessment.value[field.key]; if (field.type === 'q56_goal' && value && typeof value === 'object') return value.has_clinician_goal ? `首要目标：${labelFor(value.primary_goal, 'primary_goal')}；其他重点：${labelsFor(value.secondary_goals || [], 'secondary_goal') || '无'}` : '未设定医护目标，按A–F默认规则生成'; return Array.isArray(value) ? value.map((item) => labelFor(item, 'secondary_goal')).join('、') || '待填写' : hasValue(value) ? value : '待填写' }
 const tabs = [['overview', '总览'], ['archive', '患者档案'], ['result', '评估结果'], ['plan', '方案管理'], ['monitor', '数据监测'], ['consult', '咨询记录'], ['history', '历史记录']]
-function beginEdit() { draftJson.value = JSON.stringify(plan.value.draft || {}, null, 2); editing.value = true }
-async function saveDraft() { try { plan.value = await savePlanDraft(route.params.id, JSON.parse(draftJson.value || '{}')); editing.value = false; await refresh() } catch { window.alert('方案保存失败，请检查内容格式') } }
-async function saveReview() { if (!reviewText.value.trim()) return; try { await api.reviewPlan(route.params.id, 'start_review', 1, reviewText.value.trim()); plan.value = addPlanReview(route.params.id, { comment: reviewText.value.trim(), reviewer: '审核医护' }); reviewText.value = ''; reviewOpen.value = false; await refresh() } catch { window.alert('审核意见保存失败') } }
-async function approveDraft() { try { plan.value = await setPlanStatus(route.params.id, 'APPROVED_PENDING_MDT_ACTIVATION'); await refresh() } catch (error) { window.alert(error?.response?.data?.detail || '审核未完成，请检查方案校验') } }
-async function returnDraft() { try { plan.value = await setPlanStatus(route.params.id, 'RETURNED'); await refresh() } catch (error) { window.alert(error?.response?.data?.detail || '退回失败') } }
+const reviewErrorText = (error, fallback) => { try { const parsed = JSON.parse(error?.message || ''); return parsed?.message || parsed?.detail || fallback } catch { return error?.message || fallback } }
+async function approveDraft() { try { plan.value = await api.reviewPlan(route.params.id, 'approve', 1, reviewText.value.trim()); reviewText.value = ''; await refresh() } catch (error) { window.alert(reviewErrorText(error, '审核未完成，请检查方案校验')) } }
+async function returnDraft() { try { plan.value = await api.reviewPlan(route.params.id, 'return', 1, reviewText.value.trim()); reviewText.value = ''; await refresh() } catch (error) { window.alert(reviewErrorText(error, '退回失败')) } }
 async function confirmPublish() { try { plan.value = await publishPlan(route.params.id); publishConfirm.value = false; await refresh() } catch (error) { window.alert(error?.response?.data?.detail || '当前方案仍不可发布') } }
 async function completeAssessmentReview() { await reviewAssessment(route.params.id); await refresh() }
 </script>
@@ -118,13 +120,33 @@ async function completeAssessmentReview() { await reviewAssessment(route.params.
     <section class="patient-summary-care"><div class="patient-avatar-care">{{ patient.name?.slice(0, 1) }}</div><div><h2>{{ patient.name }}</h2><p>{{ patient.id }} · {{ patient.sex }} · {{ patient.age }} · 距手术：{{ surgeryWindow }}</p></div><span class="care-status" :class="patient.safety">{{ patient.safety === 'red' ? '红色重点' : patient.safety === 'yellow' ? '黄色关注' : '绿色安全' }}</span></section>
     <div class="care-tabs detail-tabs"><button v-for="item in tabs" :key="item[0]" :class="{ active: tab === item[0] }" @click="tab = item[0]">{{ item[1] }}</button></div>
 
-    <section v-if="tab === 'overview'" class="care-panel detail-panel"><h2>患者总览</h2><div class="care-detail-grid"><div><span>A-F基础表型</span><strong>{{ patient.phenotype }}</strong></div><div><span>疾病/代谢风险</span><strong>{{ patient.diseaseRisk }}</strong></div><div><span>安全等级</span><strong>{{ patient.safety }}</strong></div><div><span>当前方案</span><strong>{{ statusText(plan.status) }}</strong></div></div></section>
+    <section v-if="tab === 'overview'" class="care-panel detail-panel"><h2>患者总览</h2><div class="care-detail-grid"><div><span>A-F基础表型</span><strong>{{ patient.phenotype }}</strong></div><div><span>疾病/代谢风险</span><strong>{{ patient.diseaseRisk }}</strong></div><div><span>安全等级</span><strong>{{ labelFor(patient.safety, 'safety_level') }}</strong></div><div><span>当前方案</span><strong>{{ statusText(plan.status) }}</strong></div></div></section>
     <section v-else-if="tab === 'archive'" class="care-panel detail-panel"><h2>患者档案 · Q1–Q56 · V1.2</h2><div v-for="section in assessmentSections" :key="section.id" class="archive-care-section"><h3>{{ section.icon }} {{ section.title }}</h3><div v-for="field in section.fields" :key="field.key" class="care-question"><span>Q{{ field.questionId }} · {{ field.label }}</span><em>{{ displayAssessment(field) }}</em></div></div></section>
     <section v-else-if="tab === 'result'" class="care-panel detail-panel"><h2>评估结果</h2><div class="result-care-cards"><div><span>数据充分度</span><strong>{{ assessmentResult.completion > 60 ? '较充分' : '需补充' }}</strong></div><div><span>A-F基础表型</span><strong>{{ assessmentResult.phenotype }}</strong></div><div><span>安全等级</span><strong>{{ assessmentResult.safety }}</strong></div></div><p class="care-note">评估状态：{{ assessmentResult.status }}</p><button v-if="assessmentResult.status === 'SUBMITTED'" class="primary-care" @click="completeAssessmentReview">完成评估审核</button></section>
 
     <section v-else-if="tab === 'plan'" class="care-panel detail-panel plan-v21">
       <div class="care-panel-head"><div><p class="eyebrow">V2.1 第一周执行方案</p><h2>方案管理</h2><p class="care-note">{{ displayStatus(plan.status) }}<template v-if="plan.status !== 'PUBLISHED' && structuredPlan.draft_source"> · {{ structuredPlan.draft_source }}</template></p></div><span class="care-status" :class="plan.status === 'PUBLISHED' ? 'green' : 'yellow'">{{ displayStatus(plan.status) }}</span></div>
       <div v-if="candidateDraft && plan.status !== 'PUBLISHED'" class="governance-notice"><strong>系统候选方案｜仅供医护审核</strong><span>候选规则来源已保留审计信息，患者端仅显示正式发布版本。</span></div>
+
+      <ClinicianPlanView v-if="hasPlanView" :plan-view="planView">
+        <template #actions>
+          <ClinicianPlanActions
+            :plan-status="plan.status"
+            :review-eligible="structuredPlan.review_eligible"
+            :publish-eligible="structuredPlan.publish_eligible"
+            :review-text="reviewText"
+            :publish-confirm="publishConfirm"
+            @update:review-text="reviewText = $event"
+            @return="returnDraft"
+            @approve="approveDraft"
+            @request-publish="publishConfirm = true"
+            @confirm-publish="confirmPublish"
+            @cancel-publish="publishConfirm = false"
+          />
+        </template>
+      </ClinicianPlanView>
+
+      <template v-else>
 
       <article class="plan-section"><h3>1. 当前管理周期与患者状态</h3><div class="plan-stat-grid"><div><span>管理阶段</span><strong>{{ shown(structuredPlan.management_period?.stage) }}</strong></div><div><span>距手术</span><strong>{{ surgeryWindow }}</strong></div><div><span>方案周期</span><strong>第1周</strong></div><div><span>当前状态</span><strong>{{ displayStatus(plan.status) }}</strong></div></div></article>
       <article class="plan-section"><h3>2. A-F表型与安全等级</h3><div class="plan-stat-grid"><div><span>主表型</span><strong>{{ shown(structuredPlan.phenotype || patient.phenotype) }}</strong></div><div><span>安全状态</span><strong>{{ shown(structuredPlan.safety_level) }}</strong></div><div><span>强化减脂资格</span><strong>{{ structuredPlan.enhanced_eligible ? '符合' : '不符合' }}</strong></div></div></article>
@@ -139,10 +161,11 @@ async function completeAssessmentReview() { await reviewAssessment(route.params.
       <article class="plan-section safety-section"><h3>9. 安全规则 / 暂停与升级条件</h3><div class="safety-summary-grid"><div><span>当前安全等级</span><strong>{{ safetySummary.level }}</strong></div><div><span>当前触发项</span><strong>{{ safetySummary.trigger }}</strong></div></div><div class="safety-permissions"><div><span>当前营养方案</span><b>{{ safetySummary.nutrition ? '允许' : '不允许' }}</b></div><div><span>强化减脂</span><b>{{ safetySummary.enhanced ? '允许' : '不允许' }}</b></div><div><span>有氧运动</span><b>{{ safetySummary.aerobic ? '允许' : '不允许' }}</b></div><div><span>抗阻训练</span><b>{{ safetySummary.resistance ? '允许' : '不允许' }}</b></div><div><span>运动进阶</span><b>{{ safetySummary.progression ? '允许' : '不允许' }}</b></div><div><span>肺预康复</span><b>{{ safetySummary.pulmonary ? '允许' : '不允许' }}</b></div><div><span>发布给患者</span><b>{{ safetySummary.publish ? '允许' : '不允许' }}</b></div></div><p v-if="hasValue(structuredPlan.safety_rules?.precautions)">注意事项：{{ structuredPlan.safety_rules.precautions }}</p><p v-if="hasValue(safetySummary.stop)">暂停条件：{{ safetySummary.stop }}</p><p v-if="hasValue(safetySummary.escalation)">升级处理：{{ safetySummary.escalation }}</p></article>
       <article v-if="(structuredPlan.missing_data || []).length" class="plan-section"><h3>10. 待补充资料</h3><p>{{ listValue(structuredPlan.missing_data) }}</p></article>
       <article class="plan-section"><h3>11. 周复评 / 下一周计划</h3><p v-if="hasValue(structuredPlan.weekly_review?.decision)">本周决策：{{ labelFor(structuredPlan.weekly_review.decision, 'weekly_decision') }}</p><p v-if="hasValue(structuredPlan.weekly_review?.reason)">{{ structuredPlan.weekly_review.reason }}</p><p v-if="hasValue(structuredPlan.next_week_adjustment?.status)">{{ structuredPlan.next_week_adjustment.status }}</p></article>
-      <article class="plan-section"><h3>12. 医护审核意见与操作</h3><div v-if="reviewOpen" class="review-panel"><label>审核意见<textarea v-model="reviewText"></textarea></label><button class="primary-care" @click="saveReview">保存意见</button></div><div class="care-actions"><button @click="beginEdit">{{ plan.status === 'PUBLISHED' ? '编辑方案/生成新版本' : '编辑方案' }}</button><button @click="reviewOpen = true">添加审核意见</button><template v-if="plan.status !== 'PUBLISHED'"><button @click="returnDraft">退回修改</button><button class="primary-care" :disabled="!structuredPlan.review_eligible" @click="approveDraft">审核通过</button><button class="primary-care" :disabled="!structuredPlan.publish_eligible" @click="publishConfirm = true">发布给患者</button></template><button v-else class="published-action" disabled>已发布</button></div><div v-if="publishConfirm" class="confirm-panel"><strong>确认发布给患者？</strong><button class="primary-care" @click="confirmPublish">确认发布</button><button @click="publishConfirm = false">取消</button></div><div v-if="editing" class="plan-edit-panel"><label>高级编辑（结构化JSON）<textarea v-model="draftJson" rows="16"></textarea></label><div class="care-actions"><button class="primary-care" @click="saveDraft">保存新版本</button><button @click="editing = false">取消</button></div></div></article>
-    </section>
+      <article class="plan-section"><h3>12. 医护审核意见与操作</h3><label>审核备注（可选）<textarea v-model="reviewText"></textarea></label><div class="care-actions"><template v-if="plan.status !== 'PUBLISHED'"><button type="button" @click="returnDraft">退回修改</button><button type="button" class="primary-care" :disabled="!structuredPlan.review_eligible" @click="approveDraft">审核通过</button><button type="button" class="primary-care" :disabled="!structuredPlan.publish_eligible" @click="publishConfirm = true">发布给患者</button></template><button v-else class="published-action" disabled>已发布</button></div><div v-if="publishConfirm" class="confirm-panel"><strong>确认发布给患者？</strong><button type="button" class="primary-care" @click="confirmPublish">确认发布</button><button type="button" @click="publishConfirm = false">取消</button></div></article>
+       </template>
+     </section>
 
-    <section v-else-if="tab === 'monitor'" class="care-panel detail-panel"><h2>数据监测</h2><p>最近记录：{{ records.latestDate || '暂无' }}</p></section>
+     <section v-else-if="tab === 'monitor'" class="care-panel detail-panel"><h2>数据监测</h2><p>最近记录：{{ records.latestDate || '暂无' }}</p></section>
     <section v-else-if="tab === 'consult'" class="care-panel detail-panel"><h2>咨询记录</h2><div v-for="item in consultations" :key="item.id" class="care-task"><strong>{{ item.type }} · {{ item.status }}</strong><span>{{ item.summary }}</span></div></section>
     <section v-else class="care-panel detail-panel"><h2>重要历史记录</h2><p class="care-note">仅展示历史评估、方案版本和重要状态变更。</p></section>
   </section>

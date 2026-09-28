@@ -595,6 +595,46 @@ def save_plan_draft(patient_id: str, body: PlanUpdateIn) -> dict[str, Any]:
     return updated
 
 
+def _hard_publication_blockers(draft: dict[str, Any], validation: dict[str, Any]) -> list[str]:
+    """Return only blockers that clinician approval must not bypass.
+
+    Candidate/provisional energy provenance is review-resolvable: approval
+    records that a clinician accepted the current version without rewriting
+    the underlying energy status.  Explicit safety/content/execution failures
+    remain hard blockers and continue to protect publication.
+    """
+    blockers: list[str] = []
+    content_checks = (
+        ("content_validation", "方案内容校验未通过"),
+        ("nutrition_plan_validation", "营养方案校验未通过"),
+        ("exercise_validation", "运动方案校验未通过"),
+        ("pulmonary_validation", "肺预康复方案校验未通过"),
+        ("safety_validation", "安全校验阻止发布"),
+    )
+    for key, message in content_checks:
+        value = validation.get(key)
+        if value not in (None, "PASS"):
+            blockers.append(message)
+    if str(draft.get("safety_level") or "").lower() == "red":
+        blockers.append("安全等级为红色，必须暂停并升级处理")
+
+    reasons = list(validation.get("publish_block_reasons") or [])
+    energy_state = ((draft.get("energy_state") or {}).get("energy_target") or {}).get("status")
+    for reason in reasons:
+        text = str(reason)
+        # This is the existing engine reason for provisional/candidate energy.
+        # It is resolved by whole-plan clinician approval, while UNAVAILABLE
+        # remains a true execution/publication blocker.
+        if "能量状态为PROVISIONAL/UNAVAILABLE" in text and energy_state != "UNAVAILABLE":
+            continue
+        blockers.append(text)
+    if draft.get("publication_blocked") and not reasons:
+        blockers.append("方案标记为禁止发布")
+    if validation.get("publish_validation") == "BLOCKED" and not reasons and not blockers:
+        blockers.append("发布校验未通过")
+    return list(dict.fromkeys(blockers))
+
+
 @app.post("/api/patients/{patient_id}/plans/review")
 def review_plan(patient_id: str, body: ReviewIn) -> dict[str, Any]:
     _patient_or_404(patient_id)
@@ -615,18 +655,18 @@ def review_plan(patient_id: str, body: ReviewIn) -> dict[str, Any]:
             raise HTTPException(422, {"message": "方案内容校验未通过，不能审核", "errors": validation.get("errors", [])})
         if validation.get("safety_validation") == "BLOCKED" or draft.get("safety_level") == "red":
             raise HTTPException(422, {"message": "安全校验阻止审核通过", "errors": validation.get("publish_block_reasons", [])})
+        hard_blockers = _hard_publication_blockers(draft, validation)
+        if hard_blockers:
+            raise HTTPException(422, {"message": "方案存在硬性阻断，不能审核通过", "errors": hard_blockers})
         draft["review_status"] = "APPROVED"
         draft["review_eligible"] = True
-        # Patient-level review is independent from clinician content review,
-        # but a blocked draft must not enter READY_TO_PUBLISH.  Keep the
-        # approved-but-governance-blocked state explicit until the blocking
-        # condition is resolved; historical APPROVED_PENDING_MDT_ACTIVATION
-        # rows remain readable.
-        publication_blocked = bool(
-            draft.get("publication_blocked")
-            or validation.get("publish_validation") == "BLOCKED"
-        )
-        status_map["approve"] = "APPROVED_PENDING_PUBLISH" if publication_blocked else "READY_TO_PUBLISH"
+        resolved_review_reasons = [reason for reason in (validation.get("publish_block_reasons") or []) if reason not in hard_blockers]
+        validation["resolved_review_reasons"] = resolved_review_reasons
+        validation["publish_block_reasons"] = hard_blockers
+        validation["publish_validation"] = "BLOCKED" if hard_blockers else "PASS"
+        draft["publication_blocked"] = bool(hard_blockers)
+        draft["publish_eligible"] = not hard_blockers
+        status_map["approve"] = "APPROVED_PENDING_PUBLISH" if hard_blockers else "READY_TO_PUBLISH"
         validation["review_validation"] = "PASS"
         draft["validation_result"] = validation
         plan["draft"] = draft
