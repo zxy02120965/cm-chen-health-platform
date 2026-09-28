@@ -1,0 +1,1053 @@
+{
+  "asset_role": "FOOD_SELECTION_METADATA",
+  "version": "V1.4",
+  "source_version": "V1.4",
+  "mdt_status": "MDT_APPROVED_FINAL",
+  "source_workbook": "ZXY_FOOD_49组件_选择元数据_V1.4_MDT定稿版.xlsx",
+  "source_workbook_sha256": "404855ab445a5640a2d0b7a6d83d560fd60ade9a5bd50e110a37a68c1fd2899e",
+  "execution_truth": {
+    "role": "MDT_STANDARD_COMPONENT_EXECUTION",
+    "version": "V1.3"
+  },
+  "ingredient_truth": {
+    "role": "MDT_INGREDIENT_MASTER",
+    "version": "V1.3"
+  },
+  "components": [
+    {
+      "component_id": "C001",
+      "dish_name": "白米饭",
+      "category": "staple",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C002",
+        "C003",
+        "C005"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C002",
+      "dish_name": "糙米饭",
+      "category": "staple",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C003",
+      "dish_name": "杂粮饭",
+      "category": "staple",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C004",
+      "dish_name": "燕麦早餐份",
+      "category": "staple",
+      "approved_meal_slots": [
+        "breakfast"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C009",
+        "C010"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C005",
+      "dish_name": "全麦馒头",
+      "category": "staple",
+      "approved_meal_slots": [
+        "breakfast"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C011"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C006",
+      "dish_name": "鲜玉米",
+      "category": "staple",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C007"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C007",
+      "dish_name": "蒸红薯",
+      "category": "staple",
+      "approved_meal_slots": [
+        "breakfast",
+        "lunch",
+        "dinner",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C006",
+        "C012"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C008",
+      "dish_name": "荞麦面",
+      "category": "staple",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C003",
+        "C005"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C009",
+      "dish_name": "小米粥",
+      "category": "staple",
+      "approved_meal_slots": [
+        "breakfast",
+        "dinner"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C004"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C010",
+      "dish_name": "红豆小米粥",
+      "category": "staple",
+      "approved_meal_slots": [
+        "breakfast",
+        "dinner"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C004",
+        "C012"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C011",
+      "dish_name": "全麦面包",
+      "category": "staple",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C005"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "C012",
+      "dish_name": "山药主食份",
+      "category": "staple",
+      "approved_meal_slots": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "staple",
+      "approved_replacement_component_ids": [
+        "C007",
+        "C001"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P001",
+      "dish_name": "清蒸鲈鱼",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P003",
+        "P008"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P002",
+      "dish_name": "清蒸鳕鱼",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P001",
+        "P003"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P003",
+      "dish_name": "香草/葱姜鸡胸",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P004",
+        "P001",
+        "P008"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P004",
+      "dish_name": "去皮鸡腿肉炖菇",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P003",
+        "P001"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P005",
+      "dish_name": "番茄炖瘦牛肉",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P003",
+        "P008"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P006",
+      "dish_name": "芹菜木耳里脊",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P003",
+        "P010"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P007",
+      "dish_name": "虾仁蒸蛋",
+      "category": "protein",
+      "approved_meal_slots": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P014"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P008",
+      "dish_name": "香菇烧北豆腐",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P014",
+        "P001"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P009",
+      "dish_name": "番茄炒蛋（少油版）",
+      "category": "protein",
+      "approved_meal_slots": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P014",
+        "P008"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P010",
+      "dish_name": "西兰花虾仁",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P011",
+      "dish_name": "鸡胸彩椒",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P006",
+        "P008"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P012",
+      "dish_name": "牛肉西葫芦",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P003",
+        "P008"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P013",
+      "dish_name": "冬瓜豆腐虾仁汤",
+      "category": "protein",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P014"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P014",
+      "dish_name": "鸡蛋豆腐羹",
+      "category": "protein",
+      "approved_meal_slots": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [
+        "P007"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "P015",
+      "dish_name": "低脂奶蛋组合",
+      "category": "protein",
+      "approved_meal_slots": [
+        "breakfast"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "protein",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S001",
+      "dish_name": "低脂奶+苹果",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [
+        "S006"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S002",
+      "dish_name": "无糖酸奶+草莓",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [
+        "S010"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S003",
+      "dish_name": "无糖豆浆+梨",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S004",
+      "dish_name": "低脂奶+小香蕉",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [
+        "S001"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S005",
+      "dish_name": "无糖酸奶+核桃",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S006",
+      "dish_name": "低脂奶+橙",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [
+        "S001"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S007",
+      "dish_name": "苹果+杏仁",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S008",
+      "dish_name": "鲜玉米+低脂奶",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S009",
+      "dish_name": "水煮蛋+小番茄",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "S010",
+      "dish_name": "猕猴桃+无糖酸奶",
+      "category": "snack",
+      "approved_meal_slots": [
+        "breakfast",
+        "snack"
+      ],
+      "breakfast_allowed": "YES",
+      "breakfast_priority": "ACCEPTABLE",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "snack",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "SOURCE_AND_REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V001",
+      "dish_name": "蒜香西兰花",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V003",
+        "V002"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V002",
+      "dish_name": "清炒菠菜",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V003"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V003",
+      "dish_name": "香菇油麦菜",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V004",
+        "V001"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V004",
+      "dish_name": "清炒圆白菜",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V003"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V005",
+      "dish_name": "芹菜木耳",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V001"
+      ],
+      "final_runtime_readiness": "SOURCE_PENDING",
+      "final_execution_basis": "V1.3_EXECUTION_TRUTH",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V006",
+      "dish_name": "番茄黄瓜双拼",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V001",
+        "V002",
+        "V004"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V007",
+      "dish_name": "彩椒杏鲍菇",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V003"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V008",
+      "dish_name": "胡萝卜西葫芦",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V009",
+        "V004"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V009",
+      "dish_name": "冬瓜香菇",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V008"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V010",
+      "dish_name": "少油烧茄子",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V004",
+        "V008"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V011",
+      "dish_name": "生菜番茄沙拉（中式清拌）",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [
+        "V001",
+        "V002"
+      ],
+      "final_runtime_readiness": "READY",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "APPROVED",
+      "replacement_review_decision": "APPROVED",
+      "mdt_finalized": true
+    },
+    {
+      "component_id": "V012",
+      "dish_name": "西兰花胡萝卜双蔬",
+      "category": "vegetable",
+      "approved_meal_slots": [
+        "lunch",
+        "dinner"
+      ],
+      "breakfast_allowed": "NO",
+      "breakfast_priority": "NOT_PREFERRED",
+      "approved_setting_tags": [],
+      "approved_replacement_group": "vegetable",
+      "approved_replacement_component_ids": [],
+      "final_runtime_readiness": "REPLACEMENT_PENDING",
+      "final_execution_basis": "V1.3_EXACT_ELIGIBLE",
+      "review_decision": "NEEDS_REVISION",
+      "replacement_review_decision": "NEEDS_REVISION",
+      "mdt_finalized": true
+    }
+  ]
+}

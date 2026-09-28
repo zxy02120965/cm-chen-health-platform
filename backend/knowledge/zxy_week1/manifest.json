@@ -58,6 +58,16 @@
       "active": true
     },
     {
+      "relative_path": "data/ZXY_FOOD_Selection_Metadata_MDT_FINAL_V1.4.json",
+      "role": "FOOD_SELECTION_METADATA",
+      "version": "V1.4",
+      "sha256": "b6178abab8f3eda515223333b166cd13eb8049614fd81732ca3c0894f724221b",
+      "status": "ACTIVE",
+      "mdt_status": "MDT_APPROVED_FINAL",
+      "provenance_note": "从ZXY_FOOD_49组件_选择元数据_V1.4_MDT定稿版.xlsx抽取；仅用于选择元数据，不覆盖V1.3执行/营养真值。",
+      "active": true
+    },
+    {
       "relative_path": "data/ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_FINAL_V1.0.xlsx",
       "role": "FUNCTIONAL_ACTIVITY_ACTION_LIBRARY",
       "version": "V1.0",

@@ -515,6 +515,12 @@ def create_plan(patient_id: str) -> dict[str, Any]:
         # draft. Existing ACTIVE values always win; no production config is
         # promoted and the candidate source remains visible in the draft.
         existing = active_values.get(key) or {}
+        # FOOD selection is an explicit source cutover: the new generation
+        # path must use the manifest-backed V1.4 metadata even if an older
+        # governance row still contains the legacy V1.7-shaped catalog.
+        if key in {"FOOD_SELECTION_METADATA", "V2-FOOD-COMPONENTS"}:
+            active_values[key] = {**value, "status": value.get("status", "ACTIVE"), "environment": "TEST_ONLY"}
+            continue
         existing_payload = {k: v for k, v in existing.items() if k not in {"status", "source_version", "environment"}}
         existing_has_values = any(v not in (None, "", [], {}) for v in existing_payload.values())
         if existing.get("status") == "ACTIVE" and existing_has_values:
@@ -522,6 +528,12 @@ def create_plan(patient_id: str) -> dict[str, Any]:
         active_values[key] = {**existing, **value, "status": "CANDIDATE", "environment": "CANDIDATE_MDT"}
     active_knowledge = context.get("approved_knowledge", [])
     for cfg_id, item_type, key in (("V2-FOOD-COMPONENTS", "FOOD", "component_id"), ("V2-EXERCISE-ACTIONS", "EXERCISE", "exercise_id"), ("V2-PULMONARY-ACTIONS", "PULMONARY", "pulmonary_id")):
+        # FOOD selection is now a manifest-backed V1.4 asset merged with the
+        # V1.3 execution truth by candidate_test_profile().  Do not let older
+        # approved-knowledge rows (including the unregistered V1.7 workbook)
+        # overwrite that source for new plan generation.
+        if item_type == "FOOD":
+            continue
         entries = [x.get("content_json", {}) for x in active_knowledge if x.get("item_type") == item_type and x.get("content_json", {}).get(key)]
         ids = [x.get(key) for x in entries]
         if ids:

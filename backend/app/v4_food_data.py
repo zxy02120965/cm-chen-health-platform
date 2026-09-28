@@ -215,6 +215,10 @@ class StandardComponentRecord:
     requires_clinician_review: bool
     # Compatibility alias: active means exact-nutrition eligible, not merely executable.
     active: bool
+    # Frozen V1.3 clinical caution text used by the existing selector's
+    # disease-aware ranking.  It is execution-asset metadata, not selection
+    # truth and is never used to infer meal slots or readiness.
+    contraindications: str | None = None
 
 
 @dataclass(frozen=True)
@@ -519,6 +523,7 @@ def _load_runtime() -> V4FoodRuntime:
             nutrition_source_pending=not exact_nutrition_eligible,
             requires_clinician_review=not exact_nutrition_eligible,
             active=exact_nutrition_eligible,
+            contraindications=_clean(review.get(review_headers[10])) if len(review_headers) > 10 else None,
         )
     return V4FoodRuntime(
         manifest_path=MANIFEST_PATH,

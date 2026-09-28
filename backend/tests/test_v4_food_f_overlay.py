@@ -27,7 +27,10 @@ def test_f_food_overlay_captures_base_and_final_and_preserves_b():
     assert overlay["applied"] is True
     assert overlay["before"]["weekly_unique_menu_patterns"] == 7
     assert overlay["after"]["weekly_unique_menu_patterns"] <= 3
-    assert overlay["strategies"]["SIMPLIFY_BREAKFAST"]["status"] == "APPLIED"
+    # V1.4 meal-slot filtering already produces the two-component breakfast;
+    # F still applies the rotation/recording simplification without deleting a
+    # further breakfast component.
+    assert overlay["strategies"]["SIMPLIFY_BREAKFAST"]["status"] == "NOT_APPLIED"
     assert overlay["preserved"]["underlying_primary_phenotype"] == "B"
     assert overlay["preserved"]["energy_direction"] is True
 
@@ -37,7 +40,7 @@ def test_f_food_breakfast_simplification_is_auditable_and_closes():
     trace = plan["diet_plan_trace"]
     overlay = trace["generation_context"]["food_complexity_overlay"]
 
-    assert overlay["before"]["breakfast_component_counts"] == [3] * 7
+    assert overlay["before"]["breakfast_component_counts"] == [2] * 7
     assert overlay["after"]["breakfast_component_counts"] == [2] * 7
     assert all(
         len(day["meals"]["breakfast"]["food_items"]) == 2

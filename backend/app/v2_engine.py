@@ -273,16 +273,37 @@ def build_v3_weekly_exercise(
     return unique_flat, schedule, combo
 
 def candidate_test_profile() -> dict[str, Any]:
-    """Return a deep copy with V2 catalog items for TEST_ONLY regression."""
+    """Return a TEST_ONLY profile backed by the active V1.4 selection asset.
+
+    Exercise and pulmonary compatibility catalogues remain sourced from the
+    existing structured catalog.  FOOD selection is intentionally loaded from
+    the manifest-backed V1.4 metadata and merged with V1.3 execution truth;
+    the unregistered V1.7 workbook is never used for new plan generation.
+    """
     profile = deepcopy(V2_CANDIDATE_TEST_PROFILE)
+    from .v4_food_selection import build_manifest_backed_food_catalog
+
+    food_catalog, selection_provenance = build_manifest_backed_food_catalog()
+    profile["FOOD_SELECTION_METADATA"] = {
+        "status": "ACTIVE",
+        "environment": "TEST_ONLY",
+        "role": "FOOD_SELECTION_METADATA",
+        "version": "V1.4",
+        "provenance": selection_provenance,
+    }
+    profile["V2-FOOD-COMPONENTS"] = {
+        "status": "ACTIVE",
+        "environment": "TEST_ONLY",
+        "ids": [x["component_id"] for x in food_catalog],
+        "items": food_catalog,
+        "selection_source": selection_provenance,
+    }
     try:
         from .v2_knowledge import structured_catalog
         catalog = structured_catalog()
-        profile["V2-FOOD-COMPONENTS"] = {"status": "ACTIVE", "environment": "TEST_ONLY", "ids": [x["component_id"] for x in catalog["FOOD"]], "items": catalog["FOOD"]}
         profile["V2-EXERCISE-ACTIONS"] = {"status": "ACTIVE", "environment": "TEST_ONLY", "ids": [x["exercise_id"] for x in catalog["EXERCISE"]], "items": catalog["EXERCISE"]}
         profile["V2-PULMONARY-ACTIONS"] = {"status": "ACTIVE", "environment": "TEST_ONLY", "ids": [x["pulmonary_id"] for x in catalog["PULMONARY"]], "items": catalog["PULMONARY"]}
     except Exception:
-        profile["V2-FOOD-COMPONENTS"] = {"status": "ACTIVE", "environment": "TEST_ONLY", "ids": list(_food_by_id)}
         profile["V2-EXERCISE-ACTIONS"] = {"status": "ACTIVE", "environment": "TEST_ONLY", "ids": list(EXERCISES)}
         profile["V2-PULMONARY-ACTIONS"] = {"status": "ACTIVE", "environment": "TEST_ONLY", "ids": list(PULMONARY)}
     return profile
@@ -644,6 +665,8 @@ def food_candidate_score(
     else:
         components["meal_type_match"] -= 0.25
         reasons.append("餐次不匹配")
+    if slot == "breakfast" and food.get("breakfast_priority"):
+        reasons.append(f"早餐优先级:{food.get('breakfast_priority')}")
 
     # Use the configured meal distribution when present. Otherwise leave this
     # component neutral instead of inventing a meal-energy rule.
@@ -781,7 +804,9 @@ def _rotate_food(candidates: list[dict[str, Any]], *, day: int, slot: str, histo
     def rank(item: dict[str, Any]):
         use_count = counts.get(str(item.get("component_id")), 0)
         score = score_fn(item, slot, use_count) if score_fn else 0.0
-        return (-score, use_count, (seed ^ (day * 17 + len(slot) * 7 + sum(ord(c) for c in str(item.get("component_id"))))) % 997)
+        breakfast_priority = {"PREFERRED": 0, "ACCEPTABLE": 1, "NOT_PREFERRED": 2, "NOT_ALLOWED": 3}
+        priority_rank = breakfast_priority.get(str(item.get("breakfast_priority") or ""), 1) if slot == "breakfast" else 1
+        return (priority_rank, -score, use_count, (seed ^ (day * 17 + len(slot) * 7 + sum(ord(c) for c in str(item.get("component_id"))))) % 997)
     ordered = sorted(pool, key=rank)
     chosen = ordered[0]
     used.append(str(chosen.get("component_id")))
@@ -802,13 +827,28 @@ def _build_rotating_weekly_meals(items: list[dict[str, Any]], payload: dict[str,
     for day in range(1, 8):
         meals: dict[str, dict[str, Any]] = {}
         for slot in ("breakfast", "lunch", "snack", "dinner"):
+            slot_categories = {}
+            for category, candidates in categories.items():
+                slot_candidates = list(candidates)
+                selection_active = any(item.get("selection_metadata_source_role") == "FOOD_SELECTION_METADATA" for item in slot_candidates)
+                if selection_active:
+                    slot_candidates = [
+                        item for item in slot_candidates
+                        if slot in (item.get("meal_type") or []) or "any" in (item.get("meal_type") or [])
+                    ]
+                    if slot == "breakfast":
+                        slot_candidates = [item for item in slot_candidates if item.get("breakfast_allowed") != "NO"]
+                    exact_candidates = [item for item in slot_candidates if item.get("exact_nutrition_eligible") is True]
+                    if exact_candidates:
+                        slot_candidates = exact_candidates
+                slot_categories[category] = slot_candidates
             if slot == "snack":
                 score_cache: dict[tuple[str, int], tuple[float, list[str], dict[str, float]]] = {}
                 def snack_score(item, slot_name, used_count):
                     score, reasons, components = food_candidate_score(item, payload, phenotype=phenotype, goal=goal, energy_target=energy_target, protein_target=protein_target, carb_range=carb_range, fat_range=fat_range, meal_distribution=meal_distribution, slot=slot_name, history_count=used_count, return_components=True)
                     score_cache[(str(item.get("component_id")), used_count)] = (round(score, 6), reasons, components)
                     return score
-                snack, was_limited = _rotate_food(categories["snack"], day=day, slot=slot, history=history, seed=seed, history_key="snack", score_fn=snack_score)
+                snack, was_limited = _rotate_food(slot_categories["snack"], day=day, slot=slot, history=history, seed=seed, history_key="snack", score_fn=snack_score)
                 limited = limited or was_limited
                 meals[slot] = _composite_meal(slot, [snack] if snack else [], mdt_confirmed=False)
                 if snack:
@@ -831,7 +871,7 @@ def _build_rotating_weekly_meals(items: list[dict[str, Any]], payload: dict[str,
                         components["final_score"] = round(score, 6)
                     score_cache[(str(item.get("component_id")), used_count)] = (round(score, 6), reasons, components)
                     return score
-                chosen, was_limited = _rotate_food(categories[category], day=day, slot=slot, history=history, seed=seed + len(slot), history_key=category, score_fn=category_score)
+                chosen, was_limited = _rotate_food(slot_categories[category], day=day, slot=slot, history=history, seed=seed + len(slot), history_key=category, score_fn=category_score)
                 limited = limited or was_limited
                 if chosen:
                     parts.append(chosen)
@@ -840,7 +880,7 @@ def _build_rotating_weekly_meals(items: list[dict[str, Any]], payload: dict[str,
                     trace["selected_food_reason"].append({"day": day, "slot": slot, "category": category, "component_id": chosen.get("component_id"), "score": selected_score, "reasons": selected_reasons, "food_score_components": selected_components})
                     ranked = sorted(
                         ((x.get("component_id"), score_cache.get((str(x.get("component_id")), history[category].count(str(x.get("component_id")))), (None, [], {})))
-                         for x in categories[category] if x.get("component_id") != chosen.get("component_id")),
+                         for x in slot_categories[category] if x.get("component_id") != chosen.get("component_id")),
                         key=lambda value: value[1][0] if value[1][0] is not None else -999,
                         reverse=True,
                     )
@@ -1337,6 +1377,18 @@ def _replacement_candidates(
         component_id = str(item.get("component_id") or "")
         if not component_id or item.get("category") != category or component_id == current_id:
             continue
+        # Replacement search is still part of selection, so it must honor the
+        # same MDT-approved V1.4 meal-slot contract as the initial selector.
+        # Without this guard a breakfast protein could be replaced by a
+        # lunch/dinner-only component after the slot filter had already run.
+        if item.get("selection_metadata_source_role") == "FOOD_SELECTION_METADATA":
+            meal_types = item.get("meal_type") or []
+            if isinstance(meal_types, str):
+                meal_types = [meal_types]
+            if slot not in meal_types and "any" not in meal_types:
+                continue
+            if slot == "breakfast" and item.get("breakfast_allowed") == "NO":
+                continue
         if component_id in same_day_ids or component_id in adjacent_ids or not _food_allowed(item, payload):
             continue
         score = _replacement_score(
@@ -2028,6 +2080,10 @@ def build_v2_plan(
         "rejected_food_reason": [],
     }
     food_cfg = (active_configs or {}).get("V2-FOOD-COMPONENTS") or {}
+    selection_cfg = (active_configs or {}).get("FOOD_SELECTION_METADATA") or {}
+    food_selection_source = selection_cfg.get("provenance") or food_cfg.get("selection_source")
+    if food_selection_source:
+        nutrition_trace["food_selection_source"] = deepcopy(food_selection_source)
     food_confirmed = bool(isinstance(food_cfg, dict) and food_cfg.get("status") in {"ACTIVE", "CANDIDATE"})
     catalog_foods = list(food_cfg.get("items") or []) if isinstance(food_cfg, dict) and food_cfg.get("items") else []
     food_complexity_overlay_trace: dict[str, Any] = {
@@ -2228,6 +2284,9 @@ def build_v2_plan(
                 "complexity_overlay": v4_phenotype_contract.get("complexity_overlay"),
                 "energy_state": deepcopy(v4_energy_state),
                 "food_source": f"ZXY_WEEK1_V4_FREEZE/{active_food_version}",
+                "food_selection_source": deepcopy(food_selection_source),
+                "execution_source": load_v4_food_data().asset_provenance.food_execution.to_dict(),
+                "ingredient_source": load_v4_food_data().asset_provenance.ingredient_master.to_dict(),
                 "food_complexity_overlay": deepcopy(food_complexity_overlay_trace),
             },
         )

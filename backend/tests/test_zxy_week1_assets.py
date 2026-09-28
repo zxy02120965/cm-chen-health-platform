@@ -23,7 +23,7 @@ def _asset_path(entry: dict) -> Path:
 def test_zxy_week1_manifest_lists_existing_assets():
     manifest = _manifest()
     assets = manifest["assets"]
-    assert len(assets) == 8
+    assert len(assets) == 9
     assert all(_asset_path(entry).is_file() for entry in assets)
 
 
@@ -37,6 +37,7 @@ def test_zxy_week1_manifest_versions_match_filenames_and_top_level_versions():
         "ZXY_回归测试与后端验收规范_V1.0.md": ("V1.0", "ENGINEERING_TEST_CONTRACT"),
         "ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.3.xlsx": ("V1.3", "MDT_INGREDIENT_MASTER"),
         "ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.3.xlsx": ("V1.3", "MDT_STANDARD_COMPONENT_EXECUTION"),
+        "ZXY_FOOD_Selection_Metadata_MDT_FINAL_V1.4.json": ("V1.4", "FOOD_SELECTION_METADATA"),
         "ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_FINAL_V1.0.xlsx": ("V1.0", "FUNCTIONAL_ACTIVITY_ACTION_LIBRARY"),
     }
     for entry in manifest["assets"]:
