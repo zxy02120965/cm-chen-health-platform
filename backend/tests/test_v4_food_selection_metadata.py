@@ -82,7 +82,7 @@ def test_candidate_profile_uses_v14_selection_and_v13_execution_truth():
     assert selection["provenance"]["manifest_registered"] is True
     assert len(foods) == 49
     assert {item["selection_metadata_source_version"] for item in foods} == {"V1.4"}
-    assert {item["source_version"] for item in foods} == {"V1.3"}
+    assert {item["source_version"] for item in foods} == {"V1.4"}
     assert all("V1.7" not in str(item.get("source_document")) for item in foods)
 
 
@@ -147,5 +147,5 @@ def test_f_overlay_consumes_v14_selection_source_and_preserves_b_direction():
     assert trace["food_selection_source"]["role"] == "FOOD_SELECTION_METADATA"
     assert trace["food_selection_source"]["version"] == "V1.4"
     assert plan["canonical_week_diet"]["generation_context"]["food_selection_source"]["version"] == "V1.4"
-    assert plan["canonical_week_diet"]["generation_context"]["execution_source"]["version"] == "V1.3"
-    assert plan["canonical_week_diet"]["generation_context"]["ingredient_source"]["version"] == "V1.3"
+    assert plan["canonical_week_diet"]["generation_context"]["execution_source"]["version"] == "V1.4"
+    assert plan["canonical_week_diet"]["generation_context"]["ingredient_source"]["version"] == "V1.4"

@@ -386,9 +386,9 @@ def _food_row(row: list[str], source: str, source_table: int | None = None) -> d
     }
 
 def load_food_components(base: Path = RULES) -> list[dict[str, Any]]:
-    # V1.7 is the sole runtime FOOD source.  If it is unavailable or invalid,
-    # return no FOOD items so the generator marks nutrition generation
-    # incomplete instead of silently falling back to a historical DOCX menu.
+    # This loader is retained for historical V1.7 audit/tests only. It is not
+    # part of the current plan-generation source chain; current FOOD selection
+    # and execution load through the manifest-backed V1.4 assets.
     official_path = OFFICIAL_FOOD_WORKBOOK if base == RULES else base / OFFICIAL_FOOD_WORKBOOK.name
     return _load_official_food_components(official_path)
 
@@ -521,7 +521,10 @@ def _pulmonary_rows(base: Path = RULES) -> list[dict[str, Any]]:
         merged.append(item)
     return list({x["pulmonary_id"]:x for x in merged}.values())
 
-FOOD_COMPONENTS_V2 = load_food_components()
+# Do not load the historical V1.7 workbook at module import time. The legacy
+# parser remains callable for explicit audit/tests, but importing the backend
+# must not require an outputs/ directory.
+FOOD_COMPONENTS_V2: list[dict[str, Any]] = []
 EXERCISE_ACTIONS_V2 = load_exercises()
 PULMONARY_ACTIONS_V2 = _pulmonary_rows()
 
@@ -590,4 +593,14 @@ def food_catalog_gap_report(items: list[dict[str, Any]] | None = None) -> dict[s
     }
 
 def structured_catalog() -> dict[str, list[dict[str, Any]]]:
+    # Explicit legacy audit entry point. Calling this function still requires
+    # the historical V1.7 workbook by design; production generation does not
+    # call it.
+    global FOOD_COMPONENTS_V2
+    FOOD_COMPONENTS_V2 = load_food_components()
     return {"FOOD": FOOD_COMPONENTS_V2, "EXERCISE": EXERCISE_ACTIONS_V2, "PULMONARY": PULMONARY_ACTIONS_V2}
+
+
+def structured_non_food_catalog() -> dict[str, list[dict[str, Any]]]:
+    """Return legacy exercise/pulmonary compatibility data without FOOD V1.7."""
+    return {"EXERCISE": EXERCISE_ACTIONS_V2, "PULMONARY": PULMONARY_ACTIONS_V2}

@@ -68,7 +68,7 @@ def test_execution_grid_min_max_step_and_discrete_rules(runtime):
 
     package = runtime.ingredient("ING022")
     assert package.execution_eligible is True
-    assert package.exact_nutrition_eligible is False
+    assert package.exact_nutrition_eligible is True
     assert validate_execution_amount(package, 150)
     assert not validate_execution_amount(package, 125)
 

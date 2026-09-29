@@ -1,0 +1,25 @@
+{
+  "asset": "ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.4.xlsx",
+  "version": "V1.4",
+  "purpose": "正式来源追踪：仅补充已有S002/S005/S010所需ING022产品标签精确营养来源，不改变执行边界。",
+  "sources": [
+    {
+      "ingredient_id": "ING022",
+      "ingredient_name": "无糖酸奶",
+      "nutrition_source_type": "OFFICIAL_PRODUCT_LABEL",
+      "nutrition_source_name": "明治 THE GREEK YOGURT 砂糖0",
+      "source_identifier": "https://www.meiji.co.jp/corporate/pressrelease/2018/20180322_02.html",
+      "source_date": "2018-03-22",
+      "source_version": "2018 official release",
+      "weight_basis": "per_100g",
+      "per_100g": {
+        "kcal": 55.0,
+        "protein_g": 9.2,
+        "carbohydrate_g": 6.2,
+        "fat_g": 0.0
+      },
+      "calculation_provenance": "official label per 100g × final executable amount / 100",
+      "scope": "仅适用于明确该产品来源；不外推所有无糖酸奶。"
+    }
+  ]
+}

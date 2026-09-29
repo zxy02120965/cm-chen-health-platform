@@ -276,7 +276,7 @@ def candidate_test_profile() -> dict[str, Any]:
     """Return a TEST_ONLY profile backed by the active V1.4 selection asset.
 
     Exercise and pulmonary compatibility catalogues remain sourced from the
-    existing structured catalog.  FOOD selection is intentionally loaded from
+    existing V2/V3 action catalog. FOOD selection is intentionally loaded from
     the manifest-backed V1.4 metadata and merged with V1.3 execution truth;
     the unregistered V1.7 workbook is never used for new plan generation.
     """
@@ -299,8 +299,8 @@ def candidate_test_profile() -> dict[str, Any]:
         "selection_source": selection_provenance,
     }
     try:
-        from .v2_knowledge import structured_catalog
-        catalog = structured_catalog()
+        from .v2_knowledge import structured_non_food_catalog
+        catalog = structured_non_food_catalog()
         profile["V2-EXERCISE-ACTIONS"] = {"status": "ACTIVE", "environment": "TEST_ONLY", "ids": [x["exercise_id"] for x in catalog["EXERCISE"]], "items": catalog["EXERCISE"]}
         profile["V2-PULMONARY-ACTIONS"] = {"status": "ACTIVE", "environment": "TEST_ONLY", "ids": [x["pulmonary_id"] for x in catalog["PULMONARY"]], "items": catalog["PULMONARY"]}
     except Exception:
@@ -324,22 +324,21 @@ for _eid in _EXERCISE_IDS:
 for _pid, _name in {"P04": "呼吸-上肢协同", "P05": "有效咳嗽", "P06": "设备辅助呼吸训练"}.items():
         PULMONARY.setdefault(_pid, {"pulmonary_id": _pid, "name": _name, "purpose": None, "position": None, "steps": None, "dose": None, "frequency": None, "indication": None, "contraindication": None, "stop_conditions": "出现气促、头晕、胸痛或咯血立即停止。", "equipment": "医护指定设备" if _pid == "P06" else None, "alternative": None, "video_id": None, "source_version": "V2.0", "requires_clinician_order": _pid == "P06", "mdt_confirmed": False, "status": "DRAFT"})
 
-# Enrich the identifier maps from the reviewed DOCX catalogue when the
-# project docs are present.  The fallback maps above keep the API usable when
-# packaged without documentation files.
+# Enrich only the exercise/pulmonary compatibility maps from the reviewed
+# DOCX catalogues when project docs are present. FOOD is deliberately not
+# loaded here: the historical V1.7 workbook under outputs/ is not a runtime
+# dependency and current FOOD generation uses manifest-backed V1.4 assets.
 try:
-    from .v2_knowledge import structured_catalog as _structured_catalog
-    _catalog = _structured_catalog()
-    if len(_catalog.get("FOOD", [])) >= 49:
-        FOODS = _catalog["FOOD"]
+    from .v2_knowledge import structured_non_food_catalog as _structured_non_food_catalog
+    _catalog = _structured_non_food_catalog()
     if len(_catalog.get("EXERCISE", [])) >= 31:
         EXERCISES = {x["exercise_id"]: x for x in _catalog["EXERCISE"]}
     if len(_catalog.get("PULMONARY", [])) >= 6:
         PULMONARY = {x["pulmonary_id"]: x for x in _catalog["PULMONARY"]}
-except Exception as exc:
-    # Do not mask an invalid/missing V1.7 FOOD authority with the legacy
-    # hard-coded menu.  The caller must see an explicit startup/data error.
-    raise RuntimeError("无法加载正式 V1.7 FOOD catalog，已阻止旧数据源回退") from exc
+except Exception:
+    # Keep the documented compatibility fallback when optional DOCX sources
+    # are absent from a portable deployment package.
+    pass
 
 
 def _value(payload: dict[str, Any], *keys: str) -> Any:

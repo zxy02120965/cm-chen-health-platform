@@ -13,7 +13,7 @@ except ImportError:  # optional developer dependency; API runtime does not need 
 
 from app.v2_engine import build_v2_plan, candidate_test_profile
 from app.rules import assess_payload
-from app.v2_knowledge import structured_catalog
+from app.v2_knowledge import OFFICIAL_FOOD_WORKBOOK, structured_catalog
 from app.plan_validator import validate_plan
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -33,6 +33,8 @@ def _payload(case_id: str):
     }
 
 def test_v2_catalog_has_all_structured_identifiers():
+    if not OFFICIAL_FOOD_WORKBOOK.exists():
+        pytest.skip("legacy V1.7 audit workbook is not part of a portable deployment")
     catalog = structured_catalog()
     assert len(catalog["FOOD"]) == 49
     assert len(catalog["EXERCISE"]) == 31

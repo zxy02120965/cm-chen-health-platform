@@ -14,7 +14,7 @@ except ModuleNotFoundError:  # pragma: no cover - runtime dependency is installe
     select = None
     KnowledgeItemRow = MdtConfigRow = None
 from .v2_engine import FOODS, EXERCISES, PULMONARY
-from .v2_knowledge import structured_catalog
+from .v2_knowledge import structured_non_food_catalog
 
 V2_CONFIGS = [
     ("V2-REE-SOURCE-PRIORITY", "ENERGY", "V2 REE来源优先级", {"priority": ["measured_REE", "approved_formula", "bia_bmr_auxiliary", "kcal_per_kg_reference"]}),
@@ -46,11 +46,14 @@ V2_KNOWLEDGE = [
 # Expand the seed into one retrievable item per reviewed component/action.
 # Existing rows are left untouched by the idempotent importer; new entries are
 # DRAFT until MDT approval.  This keeps historical V1 rows available.
-_parsed = structured_catalog()
-_food_source = _parsed["FOOD"] or FOODS
+_parsed = structured_non_food_catalog()
+# This legacy database seed is not a FOOD generation source. Keep its
+# compatibility rows based on the in-module V2 placeholders; new plans use
+# the manifest-backed V1.4 FOOD selection/execution chain instead.
+_food_source = FOODS
 _exercise_source = _parsed["EXERCISE"] or list(EXERCISES.values())
 _pulmonary_source = _parsed["PULMONARY"] or list(PULMONARY.values())
-_food_items = [(f"V1.7-FOOD-{f['component_id']}", "FOOD", f["name"], {**f, "domain": "FOOD"}) for f in _food_source]
+_food_items = [(f"V2-FOOD-{f['component_id']}", "FOOD", f["name"], {**f, "domain": "FOOD"}) for f in _food_source]
 _exercise_items = [(f"V2-EX-{e['exercise_id']}", "EXERCISE", e["name"], {**e, "domain": "EXERCISE", "status": "DRAFT", "source_version": "V2.0"}) for e in _exercise_source]
 _pulmonary_items = [(f"V2-PR-{p['pulmonary_id']}", "PULMONARY", p["name"], {**p, "domain": "PULMONARY", "status": "DRAFT", "source_version": "V2.0"}) for p in _pulmonary_source]
 V2_KNOWLEDGE = list({item[0]: item for item in [*V2_KNOWLEDGE, *_food_items, *_exercise_items, *_pulmonary_items]}.values())

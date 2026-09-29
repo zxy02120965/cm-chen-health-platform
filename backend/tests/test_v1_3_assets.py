@@ -26,15 +26,17 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def test_v12_assets_remain_immutable_and_v13_is_active():
+def test_v12_and_v13_assets_remain_immutable_and_v14_is_active():
     assert _sha256(DATA / "ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.2.xlsx") == V12_INGREDIENT_SHA256
     assert _sha256(DATA / "ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.2.xlsx") == V12_FOOD_SHA256
     manifest = _manifest()
     active = {entry["role"]: entry for entry in manifest["assets"] if entry["active"]}
-    assert active["MDT_INGREDIENT_MASTER"]["version"] == "V1.3"
-    assert active["MDT_STANDARD_COMPONENT_EXECUTION"]["version"] == "V1.3"
-    assert active["MDT_INGREDIENT_MASTER"]["relative_path"].endswith("V1.3.xlsx")
-    assert active["MDT_STANDARD_COMPONENT_EXECUTION"]["relative_path"].endswith("V1.3.xlsx")
+    assert _sha256(DATA / "ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.3.xlsx") == "e0db11c4e146350a11771e4492d7995a2d99e82636221c7c5a5f0876d1a45150"
+    assert _sha256(DATA / "ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.3.xlsx") == "05fc4cb4bb8b8c970383cb3d82ffa25fe1645182468d22934aaf1c521c63b983"
+    assert active["MDT_INGREDIENT_MASTER"]["version"] == "V1.4"
+    assert active["MDT_STANDARD_COMPONENT_EXECUTION"]["version"] == "V1.4"
+    assert active["MDT_INGREDIENT_MASTER"]["relative_path"].endswith("V1.4.xlsx")
+    assert active["MDT_STANDARD_COMPONENT_EXECUTION"]["relative_path"].endswith("V1.4.xlsx")
 
 
 def test_v13_hashes_match_manifest_and_runtime_sources():
@@ -43,20 +45,20 @@ def test_v13_hashes_match_manifest_and_runtime_sources():
     active = {entry["role"]: entry for entry in manifest["assets"] if entry["active"]}
     for role, path in (("MDT_INGREDIENT_MASTER", runtime.ingredient_source), ("MDT_STANDARD_COMPONENT_EXECUTION", runtime.food_source)):
         assert _sha256(path) == active[role]["sha256"]
-        assert path.name.endswith("V1.3.xlsx")
+        assert path.name.endswith("V1.4.xlsx")
 
 
-def test_ingredient_master_v13_approved_weight_basis_and_pending_states():
+def test_ingredient_master_v14_approved_weight_basis_and_pending_states():
     runtime = load_v4_food_data()
     yogurt = runtime.ingredient("ING022")
     assert (yogurt.unit, yogurt.min_amount, yogurt.max_amount, yogurt.step) == ("g", 100.0, 200.0, 50.0)
     assert yogurt.weight_basis == "package_net_weight"
     assert yogurt.nutrition_basis == "per_100g"
-    assert yogurt.nutrition_source == "PRODUCT_LABEL_REQUIRED"
-    assert yogurt.final_decision == "RULE_APPROVED_SOURCE_PENDING"
+    assert yogurt.nutrition_source == "PRODUCT_LABEL_CONFIRMED"
+    assert yogurt.final_decision == "ACTIVE_FOR_EXACT"
     assert yogurt.execution_eligible is True
-    assert yogurt.exact_nutrition_eligible is False
-    assert yogurt.nutrition_source_pending is True
+    assert yogurt.exact_nutrition_eligible is True
+    assert yogurt.nutrition_source_pending is False
     assert runtime.ingredient("ING020").step == 10.0
     assert runtime.ingredient("ING027").weight_basis == "hydrated_edible_weight"
     assert runtime.ingredient("ING027").exact_nutrition_eligible is False
@@ -74,8 +76,8 @@ def test_yogurt_components_are_g_150g_and_pending_not_unit_mismatch():
         assert mapping.unit == "g"
         result = materialize_standard_component(component_id, 1.0, runtime=runtime)
         assert result["execution_materialization_status"] == "PASS"
-        assert result["standard_component_materialization"]["exact_nutrition_eligible"] is False
-        assert result["standard_component_materialization"]["nutrition_source_pending"] is True
+        assert result["standard_component_materialization"]["exact_nutrition_eligible"] is True
+        assert result["standard_component_materialization"]["nutrition_source_pending"] is False
         assert not any("UNIT_MISMATCH" in str(value) for value in result.values())
 
 

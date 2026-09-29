@@ -5,8 +5,8 @@
   "exercise_pulmonary_rule_version": "V4.2.1",
   "ui_contract_version": "V1.2",
   "engineering_test_contract_version": "V1.0",
-  "ingredient_master_version": "V1.3",
-  "food_component_execution_version": "V1.3",
+  "ingredient_master_version": "V1.4",
+  "food_component_execution_version": "V1.4",
   "assets": [
     {
       "relative_path": "rules/01_ZXY_MASTER_AGENT_KNOWLEDGE_BASE_FINAL_V4_2_5.md",
@@ -44,17 +44,27 @@
       "active": true
     },
     {
-      "relative_path": "data/ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.3.xlsx",
+      "relative_path": "data/ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.4.xlsx",
       "role": "MDT_INGREDIENT_MASTER",
-      "version": "V1.3",
-      "sha256": "e0db11c4e146350a11771e4492d7995a2d99e82636221c7c5a5f0876d1a45150",
+      "version": "V1.4",
+      "sha256": "da178c701e316f2086beabf73aaf384d2defef0e3befa2f9eea55d50c0225ad0",
+      "provenance_note": "MDT egg-free exact snack coverage; ING022 uses an identified official product-label source.",
       "active": true
     },
     {
-      "relative_path": "data/ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.3.xlsx",
+      "relative_path": "data/ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.4.xlsx",
       "role": "MDT_STANDARD_COMPONENT_EXECUTION",
-      "version": "V1.3",
-      "sha256": "05fc4cb4bb8b8c970383cb3d82ffa25fe1645182468d22934aaf1c521c63b983",
+      "version": "V1.4",
+      "sha256": "cc6857cb52553069ccf7fca5ce470a0cccd84a632a5407c5e1ea9d2e79b79735",
+      "provenance_note": "MDT egg-free exact snack coverage; S002/S005/S010 recalculated from manifest-backed Ingredient Master V1.4.",
+      "active": true
+    },
+    {
+      "relative_path": "data/ZXY_Ingredient_Nutrition_Provenance_MDT_V1.4.json",
+      "role": "MDT_NUTRITION_SOURCE_PROVENANCE",
+      "version": "V1.4",
+      "sha256": "f39cd7dd20b8dee98ef5d9aff4f3be7debfaaf1c27c0149adbc18673ed9c1235",
+      "provenance_note": "正式产品标签来源与组件营养重算追踪；不作为选择或执行边界来源。",
       "active": true
     },
     {

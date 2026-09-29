@@ -23,7 +23,7 @@ def _asset_path(entry: dict) -> Path:
 def test_zxy_week1_manifest_lists_existing_assets():
     manifest = _manifest()
     assets = manifest["assets"]
-    assert len(assets) == 9
+    assert len(assets) == 10
     assert all(_asset_path(entry).is_file() for entry in assets)
 
 
@@ -35,8 +35,9 @@ def test_zxy_week1_manifest_versions_match_filenames_and_top_level_versions():
         "03_ZXY_EXERCISE_PULMONARY_REHAB_LIBRARY_FINAL_V4_2_1.md": ("V4.2.1", "EXERCISE_PULMONARY_RULES"),
         "ZXY_第一周方案统一输出与医生端展示规范_V1.2.md": ("V1.2", "UI_OUTPUT_CONTRACT"),
         "ZXY_回归测试与后端验收规范_V1.0.md": ("V1.0", "ENGINEERING_TEST_CONTRACT"),
-        "ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.3.xlsx": ("V1.3", "MDT_INGREDIENT_MASTER"),
-        "ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.3.xlsx": ("V1.3", "MDT_STANDARD_COMPONENT_EXECUTION"),
+        "ZXY_基础食材层_Ingredient_Master_MDT定稿版_V1.4.xlsx": ("V1.4", "MDT_INGREDIENT_MASTER"),
+        "ZXY_FOOD_49组件_份量执行化_MDT定稿版_V1.4.xlsx": ("V1.4", "MDT_STANDARD_COMPONENT_EXECUTION"),
+        "ZXY_Ingredient_Nutrition_Provenance_MDT_V1.4.json": ("V1.4", "MDT_NUTRITION_SOURCE_PROVENANCE"),
         "ZXY_FOOD_Selection_Metadata_MDT_FINAL_V1.4.json": ("V1.4", "FOOD_SELECTION_METADATA"),
         "ZXY_FUNCTIONAL_ACTIVITY_ACTION_LIBRARY_FINAL_V1.0.xlsx": ("V1.0", "FUNCTIONAL_ACTIVITY_ACTION_LIBRARY"),
     }
@@ -49,8 +50,8 @@ def test_zxy_week1_manifest_versions_match_filenames_and_top_level_versions():
     assert manifest["exercise_pulmonary_rule_version"] == "V4.2.1"
     assert manifest["ui_contract_version"] == "V1.2"
     assert manifest["engineering_test_contract_version"] == "V1.0"
-    assert manifest["ingredient_master_version"] == "V1.3"
-    assert manifest["food_component_execution_version"] == "V1.3"
+    assert manifest["ingredient_master_version"] == "V1.4"
+    assert manifest["food_component_execution_version"] == "V1.4"
 
 
 def test_zxy_week1_manifest_sha256_matches_current_assets():

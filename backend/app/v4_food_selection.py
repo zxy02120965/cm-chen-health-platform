@@ -281,7 +281,7 @@ def _component_base_nutrition(component: Any, runtime: Any) -> dict[str, float |
 
 
 def build_manifest_backed_food_catalog() -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Merge V1.4 selection metadata with manifest-backed V1.3 execution data.
+    """Merge V1.4 selection metadata with manifest-backed execution data.
 
     The returned catalog is the compatibility shape consumed by the existing
     selector.  It contains no V1.7 fields and never copies V1.7 nutrition or
@@ -323,11 +323,11 @@ def build_manifest_backed_food_catalog() -> tuple[list[dict[str, Any]], dict[str
             # explicit zero step for legacy compatibility without inventing a
             # second executable scale.
             "portion_step": min((b - a) for a, b in zip(component.allowed_scales, component.allowed_scales[1:])) if len(component.allowed_scales) > 1 else 0.0,
-            "portion_boundary_source": "MDT_STANDARD_COMPONENT_EXECUTION_V1.3",
+            "portion_boundary_source": f"MDT_STANDARD_COMPONENT_EXECUTION_{execution.asset_provenance.food_execution.version}",
             "raw_or_cooked_basis": "execution_amount",
             "weight_basis": "execution_amount",
-            "cooking_method": "按V1.3组件执行映射烹调",
-            "brief_instructions": "按V1.3执行映射和医护审核份量执行。",
+            "cooking_method": "按组件执行映射烹调",
+            "brief_instructions": "按当前manifest注册的组件执行映射和医护审核份量执行。",
             "replacement_ids": list(record.approved_replacement_component_ids),
             "replacement_options": list(record.approved_replacement_component_ids),
             "approved_replacement_group": record.approved_replacement_group,

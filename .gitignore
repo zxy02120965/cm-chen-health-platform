@@ -50,6 +50,15 @@ tmp_read_doc.py
 *.tmp
 *.swp
 
+# Portable deployment outputs and clean-clone verification directories
+deployment_package/
+deployment_package_portability_v2/
+deployment_output/
+clean_clone_test/
+zip_clean_test/
+*-portable-*.zip
+*.sha256.txt
+
 # Private keys, certificates, and local credentials
 *.pem
 *.key

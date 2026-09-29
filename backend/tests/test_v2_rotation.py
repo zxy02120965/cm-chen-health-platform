@@ -1,9 +1,11 @@
 from copy import deepcopy
 
+import pytest
+
 from app.plan_validator import validate_plan
 from app.rules import assess_payload
 from app.v2_engine import build_v2_plan, candidate_test_profile, food_candidate_score, _portion_options_for
-from app.v2_knowledge import food_catalog_audit, food_catalog_gap_report, structured_catalog
+from app.v2_knowledge import OFFICIAL_FOOD_WORKBOOK, food_catalog_audit, food_catalog_gap_report, structured_catalog
 
 
 def _payload(patient_id: str, *, phenotype_hint: str | None = None, weight: float = 68):
@@ -283,19 +285,19 @@ def test_p25_warn_days_require_nutrition_review_and_weekly_summary():
     # V4 scale coordination changes the former legacy-scale outcome: closure
     # now stays within the frozen component-specific scale sets, so this day
     # may already be closed without a replacement pass.
-    # V1.4 slot filtering plus V1.3 source-pending candidates can leave a
+    # V1.4 slot filtering plus the successor exact snack coverage can leave a
     # best-effort day; this is a real review signal, not an exact target.
     assert plan["nutrition_review_required"] is True
     review = plan["nutrition_review"]
-    assert review["warn_days"] == [4, 6]
-    assert [item["day"] for item in review["issues"]] == [4, 6]
+    assert review["warn_days"] == [2, 4, 6]
+    assert [item["day"] for item in review["issues"]] == [2, 4, 6]
 
     summary = plan["weekly_nutrition_summary"]
     assert summary["days_warn"] == len(review["warn_days"])
     assert summary["days_pass"] + summary["days_warn"] + summary["days_incomplete"] == 7
     assert summary["average_energy_actual"] is not None
     assert summary["average_energy_delta_pct"] is not None
-    assert plan["replacement_optimization"][0]["accepted"] is False
+    assert plan["replacement_optimization"][0]["accepted"] is True
     assert plan["nutrition_trace"]["v4_scale_coordination"]["status"] == "PASS"
     assert plan["nutrition_trace"]["v4_scale_coordination"]["invalid_legacy_scale_prevented"] == 0
     assert plan["nutrition_closure"][0]["protein_actual"] <= 65 * 1.2
@@ -321,12 +323,12 @@ def test_d1_scale_coordination_is_bounded_and_traceable():
     payload["q30_intake"] = "减少25%"
     plan = build_v2_plan(payload, assess_payload(payload), active_configs=candidate_test_profile())
     replacement = plan["replacement_optimization"][0]
-    assert replacement["triggered"] is False
-    assert replacement["accepted"] is False
-    assert replacement["replacements"] == []
+    assert replacement["triggered"] is True
+    assert replacement["accepted"] is True
+    assert replacement["replacements"]
     assert plan["nutrition_trace"]["v4_scale_coordination"]["status"] == "PASS"
     assert replacement["candidate_attempts"] >= len(replacement["replacements"])
-    assert replacement["replacement_change_count"] == 0
+    assert replacement["replacement_change_count"] == len(replacement["replacements"])
     assert replacement["EXECUTION_COMPLEXITY"] in {"LOW", "MODERATE", "HIGH"}
     assert all(item["reason"] in {
         "replace_protein_to_reduce_protein_density",
@@ -368,6 +370,8 @@ def test_replacement_result_is_deterministic():
 
 
 def test_p3a_food_catalog_basis_subcategory_and_portion_audit():
+    if not OFFICIAL_FOOD_WORKBOOK.exists():
+        pytest.skip("legacy V1.7 audit workbook is not part of a portable deployment")
     foods = structured_catalog()["FOOD"]
     audit = food_catalog_audit(foods)
     assert len(audit) == 49

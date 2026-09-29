@@ -38,7 +38,7 @@ def _allowed_scale(item: dict[str, Any]) -> float | None:
     return min(values)
 
 
-def _candidate_base(item: dict[str, Any], source_component_id: str, slot: str) -> dict[str, Any]:
+def _candidate_base(item: dict[str, Any], source_component_id: str, slot: str, *, runtime: V4FoodRuntime) -> dict[str, Any]:
     return {
         "replacement_for_component_id": source_component_id,
         "replacement_component_id": str(item.get("component_id")),
@@ -48,7 +48,7 @@ def _candidate_base(item: dict[str, Any], source_component_id: str, slot: str) -
         "dish_name": item.get("dish_name") or item.get("name"),
         "source_version": item.get("source_version"),
         "source_asset_role": item.get("source_asset_role") or "MDT_STANDARD_COMPONENT_EXECUTION",
-        "materialization_source": "MDT_STANDARD_COMPONENT_EXECUTION_V1.3",
+        "materialization_source": f"MDT_STANDARD_COMPONENT_EXECUTION_{runtime.asset_provenance.food_execution.version}",
         "replacement_integrity": {"status": "NOT_AVAILABLE", "reason_codes": []},
     }
 
@@ -69,7 +69,7 @@ def _rejected(base: dict[str, Any], status: str, reason: str) -> dict[str, Any]:
 
 
 def _materialize_candidate(item: dict[str, Any], source_component_id: str, slot: str, *, energy_state: dict[str, Any], runtime: V4FoodRuntime) -> dict[str, Any]:
-    base = _candidate_base(item, source_component_id, slot)
+    base = _candidate_base(item, source_component_id, slot, runtime=runtime)
     mode = _mode(energy_state)
     if mode != "STRUCTURE_ONLY" and item.get("exact_nutrition_eligible") is not True:
         return _rejected(base, "SOURCE_PENDING", "REPLACEMENT_SOURCE_PENDING")
@@ -91,7 +91,7 @@ def _materialize_candidate(item: dict[str, Any], source_component_id: str, slot:
         "execution_status": materialized.get("execution_materialization_status"),
         "nutrition_recalculation_status": nutrition.get("nutrition_recalculation_status"),
         "materialization_status": "MATERIALIZED",
-        "materialization_source": "MDT_STANDARD_COMPONENT_EXECUTION_V1.3",
+        "materialization_source": f"MDT_STANDARD_COMPONENT_EXECUTION_{runtime.asset_provenance.food_execution.version}",
         "replacement_integrity": {"status": "PASS", "reason_codes": []},
     })
     return result
