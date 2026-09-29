@@ -449,12 +449,53 @@ def read_current_assessment_snapshot(patient_id: str) -> dict[str, Any] | None:
         return None
 
 
+def _latest_plan_row(session: Session, patient_id: str) -> PlanRow | None:
+    """Locate a patient's current plan without loading unrelated columns.
+
+    The locator query intentionally selects only the primary key.  The full
+    row is fetched by primary key in a second query, so a database never has
+    to carry plan JSON/TEXT columns while sorting candidate rows.
+    """
+    plan_id = session.scalars(
+        select(PlanRow.plan_id)
+        .where(PlanRow.patient_id == patient_id)
+        .order_by(PlanRow.updated_at.desc(), PlanRow.plan_id.desc())
+        .limit(1)
+    ).first()
+    return session.get(PlanRow, plan_id) if plan_id is not None else None
+
+
+def _latest_plan_version_row(
+    session: Session,
+    plan_id: int,
+    *,
+    published_only: bool = False,
+) -> PlanVersionRow | None:
+    """Locate the latest version by a narrow key query, then load its row.
+
+    ``content_json`` is deliberately absent from the ordered query.  This
+    preserves the existing version and tie-break semantics while preventing
+    MySQL from putting large JSON snapshots into a filesort buffer.
+    """
+    stmt = select(PlanVersionRow.plan_version_id).where(PlanVersionRow.plan_id == plan_id)
+    if published_only:
+        stmt = stmt.where(PlanVersionRow.status == "PUBLISHED")
+        stmt = stmt.order_by(
+            PlanVersionRow.version_no.desc(),
+            PlanVersionRow.published_at.desc(),
+            PlanVersionRow.plan_version_id.desc(),
+        )
+    else:
+        stmt = stmt.order_by(PlanVersionRow.version_no.desc(), PlanVersionRow.plan_version_id.desc())
+    plan_version_id = session.scalars(stmt.limit(1)).first()
+    return session.get(PlanVersionRow, plan_version_id) if plan_version_id is not None else None
+
+
 def _latest_plan(session: Session, patient_id: str) -> tuple[PlanRow | None, PlanVersionRow | None]:
-    plan = session.scalars(select(PlanRow).where(PlanRow.patient_id == patient_id).order_by(PlanRow.updated_at.desc(), PlanRow.plan_id.desc())).first()
+    plan = _latest_plan_row(session, patient_id)
     if not plan:
         return None, None
-    version = session.scalars(select(PlanVersionRow).where(PlanVersionRow.plan_id == plan.plan_id).order_by(PlanVersionRow.version_no.desc(), PlanVersionRow.plan_version_id.desc())).first()
-    return plan, version
+    return plan, _latest_plan_version_row(session, plan.plan_id)
 
 
 def _latest_published_plan_version(session: Session, patient_id: str) -> tuple[PlanRow | None, PlanVersionRow | None]:
@@ -465,22 +506,10 @@ def _latest_published_plan_version(session: Session, patient_id: str) -> tuple[P
     patient-facing plan.  Patient reads must therefore select the version by
     its own immutable publication status.
     """
-    plan = session.scalars(
-        select(PlanRow)
-        .where(PlanRow.patient_id == patient_id)
-        .order_by(PlanRow.updated_at.desc(), PlanRow.plan_id.desc())
-    ).first()
+    plan = _latest_plan_row(session, patient_id)
     if not plan:
         return None, None
-    version = session.scalars(
-        select(PlanVersionRow)
-        .where(PlanVersionRow.plan_id == plan.plan_id, PlanVersionRow.status == "PUBLISHED")
-        .order_by(
-            PlanVersionRow.version_no.desc(),
-            PlanVersionRow.published_at.desc(),
-            PlanVersionRow.plan_version_id.desc(),
-        )
-    ).first()
+    version = _latest_plan_version_row(session, plan.plan_id, published_only=True)
     return plan, version
 
 
